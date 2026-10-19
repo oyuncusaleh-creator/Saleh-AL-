@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Saleh AI - Smart Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0f172a; color: #f8fafc; overflow: hidden; height: 100vh; width: 100vw; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        .chat-container { scroll-behavior: smooth; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .toast-enter { animation: fadeIn 0.3s ease-out forwards; }
+        pre.code-block { background:#0b1220; border:1px solid #334155; border-radius:12px; padding:12px; overflow-x:auto; font-size:12.5px; line-height:1.55; white-space:pre-wrap; }
+    </style>
+</head>
+<body class="flex items-center justify-center relative">
+
+    <div id="toast-container" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <div id="auth-screen" class="w-full max-w-md p-8 glass-panel rounded-3xl shadow-2xl z-40 mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
+                <i data-lucide="brain-circuit" class="w-10 h-10 text-white"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">Saleh AI</h1>
+            <p class="text-slate-400" id="auth-subtitle" data-i18n="loginSubtitle">Log in to your account</p>
+        </div>
+
+        <div class="space-y-4">
+            <div id="register-fields" class="hidden space-y-4">
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="firstName">First Name</label>
+                        <input type="text" id="auth-fname" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500" placeholder="John">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="lastName">Last Name</label>
+                        <input type="text" id="auth-lname" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500" placeholder="Doe">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="dob">Date of Birth</label>
+                    <input type="date" id="auth-dob" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500" style="color-scheme: dark;">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="callMeBy">Call me by:</label>
+                    <select id="auth-preference" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 cursor-pointer" onchange="toggleNicknameField()">
+                        <option value="first" data-i18n="prefFirst">First Name only</option>
+                        <option value="last" data-i18n="prefLast">Last Name only</option>
+                        <option value="full" data-i18n="prefFull">Full Name</option>
+                        <option value="nickname" data-i18n="prefNick">My Nickname</option>
+                    </select>
+                </div>
+                <div id="nickname-field" class="hidden">
+                    <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="nickname">Nickname</label>
+                    <input type="text" id="auth-nickname" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500" placeholder="Hero, Boss...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-emerald-400 mb-1" data-i18n="aiPersonality">AI Personality</label>
+                    <select id="auth-personality" class="w-full bg-slate-800/50 border border-emerald-600/50 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                        <option value="concise" data-i18n="modeConcise">Professional and concise</option>
+                        <option value="friendly" data-i18n="modeFriendly">Friendly and direct</option>
+                        <option value="emotional" data-i18n="modeEmotional">Emotional friend (warm, short)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="email">Email</label>
+                <div class="relative">
+                    <i data-lucide="mail" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                    <input type="email" id="auth-email" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-indigo-500" placeholder="name@example.com">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="password">Password</label>
+                <div class="relative">
+                    <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                    <input type="password" id="auth-password" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-indigo-500" placeholder="********">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1" data-i18n="appLanguage">App language</label>
+                <select id="ui-lang-selector" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500 cursor-pointer" onchange="setUiLang(this.value)"></select>
+            </div>
+
+            <button onclick="handleAuth()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-500/30 mt-4" id="auth-btn" data-i18n="logIn">Log In</button>
+
+            <div class="flex items-center justify-between mt-4 text-sm">
+                <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-indigo-400 hover:text-indigo-300" data-i18n="createAccount">Create Account</button>
+                <button onclick="showSupport()" class="text-slate-400 hover:text-white flex items-center gap-1"><i data-lucide="help-circle" class="w-4 h-4"></i> <span data-i18n="support">Support</span></button>
+            </div>
+            <div class="flex items-center justify-between mt-2 text-sm">
+                <button onclick="forgotPassword()" class="text-amber-400 hover:text-amber-300" data-i18n="forgotPassword">Forgot password?</button>
+                <button onclick="continueAsGuest()" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1"><i data-lucide="user-round" class="w-4 h-4"></i> <span data-i18n="guestMode">Continue as guest</span></button>
+            </div>
+
+            <div id="reset-panel" class="hidden space-y-4 mt-6 pt-6 border-t border-slate-700">
+                <p class="text-sm text-slate-300" data-i18n="newPasswordHint">Enter your new password:</p>
+                <input type="password" id="reset-password" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-indigo-500" placeholder="********">
+                <button onclick="applyNewPassword()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl" data-i18n="resetPassword">Reset password</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden w-full h-full flex flex-col md:flex-row relative">
+
+        <div class="w-full md:w-72 glass-panel border-r border-slate-700/50 flex flex-col h-full absolute md:relative z-40 transform transition-all duration-300 -translate-x-full md:translate-x-0" id="sidebar">
+            <div class="p-4 border-b border-slate-700/50 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><i data-lucide="brain" class="w-4 h-4 text-white"></i></div>
+                    <span class="font-bold text-lg">Saleh AI</span>
+                </div>
+                <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white p-1 bg-slate-800 rounded"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div class="p-3">
+                <button onclick="createNewChat()" class="w-full bg-slate-700/50 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 font-medium">
+                    <i data-lucide="plus" class="w-4 h-4"></i> <span data-i18n="newChat">New Chat</span>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-3 space-y-2" id="chat-history-list"></div>
+
+            <div class="p-3 border-t border-slate-700/50">
+                <button onclick="toggleConnections()" class="w-full flex items-center justify-between text-xs text-slate-300 hover:text-white px-1 py-1.5">
+                    <span class="flex items-center gap-2"><i data-lucide="link-2" class="w-4 h-4"></i> <span data-i18n="connections">Connections</span></span>
+                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </button>
+                <div id="connections-list" class="hidden grid grid-cols-2 gap-2 mt-2"></div>
+            </div>
+
+            <div class="p-4 border-t border-slate-700/50 text-xs text-slate-400 flex items-center justify-between gap-2">
+                <span class="truncate max-w-[120px]" id="current-user-email"></span>
+                <div class="flex gap-1">
+                    <button onclick="openSettings()" class="text-slate-400 hover:text-indigo-400 p-1" title="Settings"><i data-lucide="settings" class="w-4 h-4"></i></button>
+                    <button onclick="logout()" class="text-slate-400 hover:text-red-400 p-1" title="Log out"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col h-full relative bg-[#0f172a]">
+            <div class="h-16 glass-panel border-b border-slate-700/50 flex items-center justify-between px-3 md:px-6 z-10 shrink-0 gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-lg border border-slate-700"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                    <div class="relative">
+                    <button id="model-btn" onclick="toggleModelMenu(event)" class="flex items-center gap-2 bg-slate-800 border border-slate-600 hover:border-indigo-500 text-slate-100 text-xs md:text-sm rounded-xl px-3 py-1.5"><i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i><span id="model-btn-label">Saleh AI Pro</span><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></button>
+                    <div id="model-menu" class="hidden absolute left-0 top-11 z-50 w-72 max-h-[70vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-2"></div>
+                    </div>
+                    <select id="engine-selector" class="hidden bg-slate-800 border border-slate-600 text-slate-200 text-xs md:text-sm rounded-lg p-1.5 cursor-pointer outline-none" onchange="saveEngine(this.value)">
+                        <optgroup label="Saleh AI">
+                            <option value="saleh-fast">Saleh AI Fast</option>
+                            <option value="saleh-think">Saleh AI Thinking</option>
+                            <option value="saleh-pro">Saleh AI Pro</option>
+                            <option value="saleh-ultra">Saleh AI Ultra Pro Max</option>
+                        </optgroup>
+                        <optgroup label="Models">
+                            <option value="gemini-flash-lite">Gemini Flash Lite</option>
+                            <option value="gemini-flash">Gemini Flash</option>
+                            <option value="gemini-pro">Gemini Pro</option>
+                            <option value="chatgpt-lite">ChatGPT Sadə</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1 md:gap-2">
+                    <button onclick="openCommunity()" class="text-slate-400 hover:text-indigo-400 p-2 rounded-lg hover:bg-slate-800" title="Community"><i data-lucide="globe" class="w-5 h-5"></i></button>
+                    <button onclick="openCanvas()" class="text-slate-400 hover:text-indigo-400 p-2 rounded-lg hover:bg-slate-800" title="Canvas"><i data-lucide="pen-tool" class="w-5 h-5"></i></button>
+                    <button onclick="toggleCameraPanel()" class="text-slate-400 hover:text-indigo-400 p-2 rounded-lg hover:bg-slate-800" title="Camera"><i data-lucide="camera" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+
+            <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-6 chat-container flex flex-col gap-4"></div>
+
+            <div class="w-full p-4 glass-panel border-t border-slate-700/50 z-20 shrink-0">
+                <div class="max-w-4xl mx-auto flex flex-col gap-2">
+                    <div id="image-attachment-preview" class="hidden relative self-start mb-1">
+                        <img id="attached-img-tag" src="" class="w-20 h-20 md:w-24 md:h-24 object-cover rounded-xl border border-slate-600 shadow-md">
+                        <button onclick="removeAttachedImage()" class="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 shadow-md"><i data-lucide="x" class="w-3 h-3"></i></button>
+                    </div>
+
+                    <div class="relative flex items-center gap-2 bg-slate-800/80 border border-slate-600 rounded-2xl px-3 py-2 shadow-lg focus-within:border-indigo-500">
+                        <div class="relative">
+                            <button onclick="togglePlusMenu()" id="plus-btn" class="text-slate-300 hover:text-indigo-400 p-2 rounded-xl hover:bg-slate-700/60" title="Tools">
+                                <i data-lucide="plus" class="w-5 h-5"></i>
+                            </button>
+                            <div id="plus-menu" class="hidden absolute bottom-14 left-0 w-64 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-2 z-50"></div>
+                        </div>
+                        <input type="file" id="gallery-input" accept="image/*" class="hidden" onchange="handleGalleryUpload(event)">
+
+                        <textarea id="chat-input" rows="1" class="flex-1 bg-transparent border-none text-white focus:outline-none px-1 py-2 resize-none max-h-32 overflow-y-auto leading-relaxed" style="min-height: 44px;" placeholder="Type a message..." oninput="this.style.height='44px'; this.style.height=(this.scrollHeight)+'px';" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendChatMessage();}"></textarea>
+
+                        <button onclick="toggleVoiceInput()" id="mic-btn" class="text-slate-400 hover:text-red-400 p-2"><i data-lucide="mic" id="mic-icon" class="w-5 h-5"></i></button>
+                        <button onclick="sendChatMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-xl shadow-md"><i data-lucide="send" class="w-5 h-5"></i></button>
+                    </div>
+
+                    <div id="mode-chip-row" class="hidden items-center gap-2 px-1">
+                        <span class="text-[11px] text-slate-400" data-i18n="selectedTool">Selected tool:</span>
+                        <span class="inline-flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/40 text-indigo-200 text-xs px-3 py-1.5 rounded-full">
+                            <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+                            <span id="mode-chip-label"></span>
+                            <button onclick="clearMode()" class="hover:text-white"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="media-preview-sidebar" class="w-full md:w-80 glass-panel border-l border-slate-700/50 flex flex-col hidden h-full absolute md:relative right-0 top-0 z-30">
+            <div class="h-16 border-b border-slate-700/50 flex items-center justify-between px-4 shrink-0 bg-slate-900/50">
+                <span class="font-semibold flex items-center gap-2 text-indigo-400"><i data-lucide="scan-eye" class="w-5 h-5"></i> AI Vision</span>
+                <button onclick="toggleCameraPanel(false)" class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+                    <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-slate-600 mb-3">
+                        <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                    </div>
+                    <button onclick="captureAndSolve()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-sm py-2 rounded-lg font-medium text-white flex items-center justify-center gap-2">
+                        <i data-lucide="aperture" class="w-4 h-4"></i> <span data-i18n="captureAnalyze">Capture and analyze</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-modal" class="hidden fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm p-2 md:p-6">
+        <div class="w-full h-full glass-panel rounded-2xl flex flex-col overflow-hidden">
+            <div class="h-14 border-b border-slate-700/50 flex items-center justify-between px-4 shrink-0 gap-2">
+                <span class="font-semibold flex items-center gap-2 text-indigo-300"><i data-lucide="pen-tool" class="w-5 h-5"></i> <span data-i18n="canvas">Canvas</span></span>
+                <div class="flex items-center gap-2">
+                    <button onclick="switchCanvasTab('draw')" id="tab-draw" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500" data-i18n="drawBoard">Draw board</button>
+                    <button onclick="switchCanvasTab('live')" id="tab-live" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500" data-i18n="liveApp">Live app</button>
+                    <button onclick="switchCanvasTab('code')" id="tab-code" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500">Kod</button>
+                    <button onclick="closeCanvas()" class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <div class="flex-1 relative overflow-hidden">
+                <div id="canvas-draw-pane" class="absolute inset-0 flex flex-col">
+                    <div class="flex items-center gap-2 p-2 border-b border-slate-700/50 flex-wrap">
+                        <input type="color" id="brush-color" value="#818cf8" class="w-9 h-9 bg-transparent border border-slate-600 rounded-lg cursor-pointer">
+                        <input type="range" id="brush-size" min="1" max="40" value="6" class="w-28">
+                        <button onclick="clearDrawing()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-red-500" data-i18n="clear">Clear</button>
+                        <button onclick="sendDrawingToAI()" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700" data-i18n="askAiDrawing">Ask AI about drawing</button>
+                    </div>
+                    <canvas id="draw-canvas" class="flex-1 bg-[#0b1220] touch-none"></canvas>
+                </div>
+                <div id="canvas-live-pane" class="absolute inset-0 hidden bg-white">
+                    <iframe id="canvas-frame" class="w-full h-full border-0" sandbox="allow-scripts allow-pointer-lock allow-modals"></iframe>
+                </div>
+                <div id="canvas-code-pane" class="absolute inset-0 hidden flex flex-col bg-[#0b1220]">
+                    <div class="flex items-center gap-2 p-2 border-b border-slate-700/50">
+                        <button onclick="copyCanvasCode()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500">Kopyala</button>
+                        <button onclick="runCanvasCode()" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700">İşə sal</button>
+                    </div>
+                    <textarea id="canvas-code" spellcheck="false" class="flex-1 w-full bg-transparent text-emerald-200 font-mono text-xs p-3 outline-none resize-none"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="hidden fixed inset-0 z-[95] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-md glass-panel rounded-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-lg" data-i18n="settings">Settings</h3>
+                <button onclick="closeSettings()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-300 mb-1" data-i18n="conversationMode">Conversation mode</label>
+                <select id="settings-personality" class="w-full bg-slate-800/60 border border-slate-600 rounded-xl py-2.5 px-3 text-white cursor-pointer">
+                    <option value="concise" data-i18n="modeConcise">Professional and concise</option>
+                    <option value="friendly" data-i18n="modeFriendly">Friendly and direct</option>
+                    <option value="emotional" data-i18n="modeEmotional">Emotional friend (warm, short)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-300 mb-1" data-i18n="appLanguage">App language</label>
+                <select id="settings-ui-lang" class="w-full bg-slate-800/60 border border-slate-600 rounded-xl py-2.5 px-3 text-white cursor-pointer" onchange="setUiLang(this.value)"></select>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-300 mb-1" data-i18n="speakLanguage">Language the AI speaks</label>
+                <select id="settings-speak-lang" class="w-full bg-slate-800/60 border border-slate-600 rounded-xl py-2.5 px-3 text-white cursor-pointer" onchange="setSpeakLang(this.value)"></select>
+                <p class="text-[11px] text-slate-400 mt-1" data-i18n="speakLanguageHint">Closed (Auto): the AI answers in the language you write in. Pick a language to lock it.</p>
+            </div>
+            <button onclick="savePersonality()" class="w-full bg-indigo-600 hover:bg-indigo-700 py-2.5 rounded-xl font-medium" data-i18n="save">Save</button>
+            <div class="border-t border-slate-700/60 pt-4 space-y-2">
+                <button onclick="deleteAllChats()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 py-2.5 rounded-xl text-sm" data-i18n="deleteAllChats">Delete all chats</button>
+                <button onclick="deleteAccount()" class="w-full bg-red-600/90 hover:bg-red-600 py-2.5 rounded-xl text-sm font-semibold" data-i18n="deleteAccount">Delete account</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="connection-modal" class="hidden fixed inset-0 z-[96] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-md glass-panel rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-lg flex items-center gap-2" id="conn-title"></h3>
+                <button onclick="closeConnection()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <ul id="conn-features" class="text-sm text-slate-300 space-y-2"></ul>
+            <button id="conn-action" onclick="toggleConnected()" class="w-full bg-indigo-600 hover:bg-indigo-700 py-2.5 rounded-xl font-medium"></button>
+        </div>
+    </div>
+
+    <div id="community-modal" class="hidden fixed inset-0 z-[96] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl glass-panel rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="globe" class="w-5 h-5 text-indigo-400"></i> <span data-i18n="community">Community</span></h3>
+                <button onclick="closeCommunity()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="community-list" class="space-y-3"></div>
+        </div>
+    </div>
+    <script>
+    /* ================= STATE ================= */
+    let isLoginMode = true;
+    let currentUser = null;
+    let currentUserData = null;
+    let activeChatId = null;
+    let chats = {};
+    let attachedImage = null;
+    let activeMode = null;
+    let recognition = null, isRecording = false;
+    let availableVoices = [];
+    let uiLang = localStorage.getItem('saleh_ui_lang') || 'en';
+    let engine = localStorage.getItem('saleh_engine') || 'saleh-pro';
+    if (!['saleh-fast','saleh-think','saleh-pro','saleh-ultra','gemini-flash-lite','gemini-flash','gemini-pro','chatgpt-lite'].includes(engine)) { engine = 'saleh-pro'; localStorage.setItem('saleh_engine', engine); }
+    let audioCtx = null;
+
+    /* ================= REAL AUTH (Lovable Cloud) ================= */
+    const SB_URL = "https://c--46922ce6-f17f-4ee8-a37a-1f6ad1c7cc4d-prod.lovable.cloud";
+    const SB_KEY = "sb_publishable_mJkRsc_L-u8O8PRTR2O-6g_rxqwewjg";
+    const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
+
+    /* ================= LANGUAGES ================= */
+    const UI_LANGS = [
+        ["en","English"],["az","Azərbaycan"],["tr","Türkçe"],["ru","Русский"],["es","Español"],
+        ["de","Deutsch"],["fr","Français"],["pt","Português"],["ar","العربية"],["ja","日本語"],
+        ["ko","한국어"],["zh","中文"]
+    ];
+
+    const UI_TO_BCP = {
+        en:"en-US", az:"az-AZ", tr:"tr-TR", ru:"ru-RU", es:"es-ES", de:"de-DE",
+        fr:"fr-FR", pt:"pt-BR", ar:"ar-SA", ja:"ja-JP", ko:"ko-KR", zh:"zh-CN"
+    };
+
+    const SPEAK_LANGS = [
+        ["auto","🔒 Auto (off) — same language as you"],
+        ["en-US","🇺🇸 USA (English)"],["en-GB","🇬🇧 England (English)"],["en-CA","🇨🇦 Canada (English)"],
+        ["az-AZ","🇦🇿 Azərbaycan"],["tr-TR","🇹🇷 Türkçe"],["ru-RU","🇷🇺 Русский"],["de-DE","🇩🇪 Deutsch"],
+        ["fr-FR","🇫🇷 Français"],["es-ES","🇪🇸 Español"],["es-MX","🇲🇽 México (Español)"],
+        ["pt-BR","🇧🇷 Brasil (Português)"],["pt-PT","🇵🇹 Portugal (Português)"],
+        ["ar-SA","🇸🇦 العربية"],["ar-TN","🇹🇳 تونس (العربية)"],["ja-JP","🇯🇵 日本語"],
+        ["ko-KR","🇰🇷 한국어"],["zh-CN","🇨🇳 中文"],["it-IT","🇮🇹 Italiano"],["sv-SE","🇸🇪 Svenska"]
+    ];
+
+    const LANG_NAMES = {
+        "en-US":"American English","en-GB":"British English","en-CA":"Canadian English",
+        "az-AZ":"Azerbaijani","tr-TR":"Turkish","ru-RU":"Russian","de-DE":"German","fr-FR":"French",
+        "es-ES":"Spanish (Spain)","es-MX":"Mexican Spanish","pt-BR":"Brazilian Portuguese",
+        "pt-PT":"European Portuguese","ar-SA":"Modern Standard Arabic",
+        "ar-TN":"Tunisian Arabic (Derja), written in Arabic script","ja-JP":"Japanese",
+        "ko-KR":"Korean","zh-CN":"Simplified Chinese","it-IT":"Italian","sv-SE":"Swedish"
+    };
+
+    const EN = {
+        loginSubtitle:"Log in to your account", registerSubtitle:"Create a new account",
+        firstName:"First Name", lastName:"Last Name", dob:"Date of Birth", callMeBy:"Call me by:",
+        prefFirst:"First name only", prefLast:"Last name only", prefFull:"Full name", prefNick:"My nickname",
+        nickname:"Nickname", aiPersonality:"AI personality",
+        modeConcise:"Professional and concise", modeFriendly:"Friendly and direct",
+        modeEmotional:"Emotional friend (warm, short)",
+        email:"Email", password:"Password", appLanguage:"App language", logIn:"Log In",
+        createAccount:"Create Account", support:"Support", newChat:"New Chat", connections:"Connections",
+        settings:"Settings", conversationMode:"Conversation mode", save:"Save",
+        deleteAllChats:"Delete all chats", deleteAccount:"Delete account", selectedTool:"Selected tool:",
+        canvas:"Canvas", drawBoard:"Draw board", liveApp:"Live app", clear:"Clear",
+        askAiDrawing:"Ask AI about my drawing", captureAnalyze:"Capture and analyze",
+        toolUpload:"Upload image", toolImage:"Create image", toolCode:"Write code",
+        toolMusic:"Create music", toolVideo:"Create video", toolCanvas:"Canvas studio",
+        inputPlaceholder:"Type a message...", emptyTitle:"I am Saleh AI",
+        emptySubtitle:"Ask anything, create images, music, video, code or open the canvas.",
+        thinking:"Thinking", playAudio:"Play audio", openInCanvas:"Open in Canvas",
+        playMusic:"Play music", deleteChat:"Delete chat", saved:"Saved",
+        confirmDeleteAccount:"Delete your account and all chats permanently?",
+        accountDeleted:"Account deleted", chatsDeleted:"All chats deleted",
+        speakLanguage:"Language the AI speaks",
+        speakLanguageHint:"Closed (Auto): the AI answers in the language you write in. Pick a language to lock it.",
+        community:"Community", communityEmpty:"Nothing published yet. Create music, a game or a video and publish it here.",
+        publish:"Publish", published:"Published to the community", copyLink:"Copy link", shareNotFound:"This shared item was not found",
+        connect:"Connect", disconnect:"Disconnect", connected:"Connected", disconnected:"Disconnected",
+        alreadyVoted:"You already voted", noVoice:"No voice available for this language on your device",
+        ultraLimit:"Ultra Pro Max is limited to 3 uses per day", ultraLeft:"Ultra Pro Max: {n} uses left this week"
+    };
+
+    const I18N = {
+        en: EN,
+        az: { loginSubtitle:"Hesabınıza daxil olun", registerSubtitle:"Yeni hesab yaradın", firstName:"Ad", lastName:"Soyad", dob:"Doğum tarixi", callMeBy:"Mənə belə müraciət et:", prefFirst:"Yalnız ad", prefLast:"Yalnız soyad", prefFull:"Ad və soyad", prefNick:"Ləqəbim", nickname:"Ləqəb", aiPersonality:"AI xarakteri", modeConcise:"Peşəkar və qısa", modeFriendly:"Dostyana və birbaşa", modeEmotional:"Emosional dost (isti, qısa)", email:"E-poçt", password:"Şifrə", appLanguage:"Proqram dili", logIn:"Daxil ol", createAccount:"Hesab yarat", support:"Dəstək", newChat:"Yeni söhbət", connections:"Bağlantılar", settings:"Ayarlar", conversationMode:"Danışıq modu", save:"Yadda saxla", deleteAllChats:"Bütün söhbətləri sil", deleteAccount:"Hesabı sil", selectedTool:"Seçilmiş alət:", canvas:"Canvas", drawBoard:"Rəsm lövhəsi", liveApp:"Canlı tətbiq", clear:"Təmizlə", askAiDrawing:"Rəsmim barədə AI-dan soruş", captureAnalyze:"Çək və analiz et", toolUpload:"Şəkil yüklə", toolImage:"Şəkil yarat", toolCode:"Kod yaz", toolMusic:"Musiqi yarat", toolVideo:"Video yarat", toolCanvas:"Canvas studiyası", inputPlaceholder:"Mesaj yazın...", emptyTitle:"Mən Saleh AI-yam", emptySubtitle:"Sual ver, şəkil, musiqi, video, kod yarat və ya canvas aç.", thinking:"Düşünürəm", playAudio:"Səsi oxut", openInCanvas:"Canvas-da aç", playMusic:"Musiqini çal", deleteChat:"Söhbəti sil", saved:"Yadda saxlanıldı", confirmDeleteAccount:"Hesabınız və bütün söhbətlər həmişəlik silinsin?", accountDeleted:"Hesab silindi", chatsDeleted:"Bütün söhbətlər silindi" },
+        tr: { loginSubtitle:"Hesabınıza giriş yapın", registerSubtitle:"Yeni hesap oluştur", firstName:"Ad", lastName:"Soyad", dob:"Doğum tarihi", callMeBy:"Bana şöyle hitap et:", prefFirst:"Sadece ad", prefLast:"Sadece soyad", prefFull:"Ad ve soyad", prefNick:"Takma adım", nickname:"Takma ad", aiPersonality:"AI kişiliği", modeConcise:"Profesyonel ve kısa", modeFriendly:"Samimi ve doğrudan", modeEmotional:"Duygusal arkadaş (sıcak, kısa)", email:"E-posta", password:"Şifre", appLanguage:"Uygulama dili", logIn:"Giriş yap", createAccount:"Hesap oluştur", support:"Destek", newChat:"Yeni sohbet", connections:"Bağlantılar", settings:"Ayarlar", conversationMode:"Konuşma modu", save:"Kaydet", deleteAllChats:"Tüm sohbetleri sil", deleteAccount:"Hesabı sil", selectedTool:"Seçili araç:", canvas:"Canvas", drawBoard:"Çizim tahtası", liveApp:"Canlı uygulama", clear:"Temizle", askAiDrawing:"Çizimim hakkında AI'ya sor", captureAnalyze:"Çek ve analiz et", toolUpload:"Resim yükle", toolImage:"Resim oluştur", toolCode:"Kod yaz", toolMusic:"Müzik oluştur", toolVideo:"Video oluştur", toolCanvas:"Canvas stüdyosu", inputPlaceholder:"Bir mesaj yazın...", emptyTitle:"Ben Saleh AI", emptySubtitle:"Soru sor, görsel, müzik, video, kod üret veya canvas aç.", thinking:"Düşünüyorum", playAudio:"Sesi oynat", openInCanvas:"Canvas'ta aç", playMusic:"Müziği çal", deleteChat:"Sohbeti sil", saved:"Kaydedildi", confirmDeleteAccount:"Hesabınız ve tüm sohbetler kalıcı olarak silinsin mi?", accountDeleted:"Hesap silindi", chatsDeleted:"Tüm sohbetler silindi" },
+        ru: { loginSubtitle:"Войдите в аккаунт", registerSubtitle:"Создать новый аккаунт", firstName:"Имя", lastName:"Фамилия", dob:"Дата рождения", callMeBy:"Обращаться ко мне:", prefFirst:"Только имя", prefLast:"Только фамилия", prefFull:"Имя и фамилия", prefNick:"Мой ник", nickname:"Ник", aiPersonality:"Характер ИИ", modeConcise:"Профессионально и кратко", modeFriendly:"Дружелюбно и прямо", modeEmotional:"Эмоциональный друг (тепло, кратко)", email:"Эл. почта", password:"Пароль", appLanguage:"Язык приложения", logIn:"Войти", createAccount:"Создать аккаунт", support:"Поддержка", newChat:"Новый чат", connections:"Подключения", settings:"Настройки", conversationMode:"Режим общения", save:"Сохранить", deleteAllChats:"Удалить все чаты", deleteAccount:"Удалить аккаунт", selectedTool:"Выбранный инструмент:", canvas:"Канвас", drawBoard:"Доска для рисования", liveApp:"Живое приложение", clear:"Очистить", askAiDrawing:"Спросить ИИ о рисунке", captureAnalyze:"Снять и проанализировать", toolUpload:"Загрузить изображение", toolImage:"Создать изображение", toolCode:"Написать код", toolMusic:"Создать музыку", toolVideo:"Создать видео", toolCanvas:"Канвас-студия", inputPlaceholder:"Введите сообщение...", emptyTitle:"Я Saleh AI", emptySubtitle:"Спрашивайте, создавайте изображения, музыку, видео, код или откройте канвас.", thinking:"Думаю", playAudio:"Воспроизвести", openInCanvas:"Открыть в канвасе", playMusic:"Воспроизвести музыку", deleteChat:"Удалить чат", saved:"Сохранено", confirmDeleteAccount:"Удалить аккаунт и все чаты навсегда?", accountDeleted:"Аккаунт удалён", chatsDeleted:"Все чаты удалены" },
+        es: { loginSubtitle:"Inicia sesión en tu cuenta", registerSubtitle:"Crear una cuenta nueva", firstName:"Nombre", lastName:"Apellido", dob:"Fecha de nacimiento", callMeBy:"Llámame:", prefFirst:"Solo nombre", prefLast:"Solo apellido", prefFull:"Nombre completo", prefNick:"Mi apodo", nickname:"Apodo", aiPersonality:"Personalidad de la IA", modeConcise:"Profesional y breve", modeFriendly:"Amable y directo", modeEmotional:"Amigo emocional (cálido, breve)", email:"Correo", password:"Contraseña", appLanguage:"Idioma de la app", logIn:"Entrar", createAccount:"Crear cuenta", support:"Soporte", newChat:"Nuevo chat", connections:"Conexiones", settings:"Ajustes", conversationMode:"Modo de conversación", save:"Guardar", deleteAllChats:"Eliminar todos los chats", deleteAccount:"Eliminar cuenta", selectedTool:"Herramienta seleccionada:", canvas:"Canvas", drawBoard:"Pizarra", liveApp:"App en vivo", clear:"Limpiar", askAiDrawing:"Pregunta a la IA sobre mi dibujo", captureAnalyze:"Capturar y analizar", toolUpload:"Subir imagen", toolImage:"Crear imagen", toolCode:"Escribir código", toolMusic:"Crear música", toolVideo:"Crear video", toolCanvas:"Estudio Canvas", inputPlaceholder:"Escribe un mensaje...", emptyTitle:"Soy Saleh AI", emptySubtitle:"Pregunta lo que quieras, crea imágenes, música, video, código o abre el canvas.", thinking:"Pensando", playAudio:"Reproducir audio", openInCanvas:"Abrir en Canvas", playMusic:"Reproducir música", deleteChat:"Eliminar chat", saved:"Guardado", confirmDeleteAccount:"¿Eliminar tu cuenta y todos los chats permanentemente?", accountDeleted:"Cuenta eliminada", chatsDeleted:"Todos los chats eliminados" },
+        de: { loginSubtitle:"Melde dich an", registerSubtitle:"Neues Konto erstellen", firstName:"Vorname", lastName:"Nachname", dob:"Geburtsdatum", callMeBy:"Nenne mich:", prefFirst:"Nur Vorname", prefLast:"Nur Nachname", prefFull:"Vollständiger Name", prefNick:"Mein Spitzname", nickname:"Spitzname", aiPersonality:"KI-Persönlichkeit", modeConcise:"Professionell und kurz", modeFriendly:"Freundlich und direkt", modeEmotional:"Emotionaler Freund (warm, kurz)", email:"E-Mail", password:"Passwort", appLanguage:"App-Sprache", logIn:"Anmelden", createAccount:"Konto erstellen", support:"Support", newChat:"Neuer Chat", connections:"Verbindungen", settings:"Einstellungen", conversationMode:"Gesprächsmodus", save:"Speichern", deleteAllChats:"Alle Chats löschen", deleteAccount:"Konto löschen", selectedTool:"Gewähltes Werkzeug:", canvas:"Canvas", drawBoard:"Zeichenbrett", liveApp:"Live-App", clear:"Löschen", askAiDrawing:"KI zu meiner Zeichnung fragen", captureAnalyze:"Aufnehmen und analysieren", toolUpload:"Bild hochladen", toolImage:"Bild erstellen", toolCode:"Code schreiben", toolMusic:"Musik erstellen", toolVideo:"Video erstellen", toolCanvas:"Canvas-Studio", inputPlaceholder:"Nachricht schreiben...", emptyTitle:"Ich bin Saleh AI", emptySubtitle:"Frag alles, erstelle Bilder, Musik, Video, Code oder öffne den Canvas.", thinking:"Denke nach", playAudio:"Audio abspielen", openInCanvas:"Im Canvas öffnen", playMusic:"Musik abspielen", deleteChat:"Chat löschen", saved:"Gespeichert", confirmDeleteAccount:"Konto und alle Chats dauerhaft löschen?", accountDeleted:"Konto gelöscht", chatsDeleted:"Alle Chats gelöscht" },
+        fr: { loginSubtitle:"Connectez-vous à votre compte", registerSubtitle:"Créer un compte", firstName:"Prénom", lastName:"Nom", dob:"Date de naissance", callMeBy:"Appelez-moi :", prefFirst:"Prénom seulement", prefLast:"Nom seulement", prefFull:"Nom complet", prefNick:"Mon surnom", nickname:"Surnom", aiPersonality:"Personnalité de l'IA", modeConcise:"Professionnel et concis", modeFriendly:"Amical et direct", modeEmotional:"Ami émotionnel (chaleureux, court)", email:"E-mail", password:"Mot de passe", appLanguage:"Langue de l'app", logIn:"Se connecter", createAccount:"Créer un compte", support:"Assistance", newChat:"Nouveau chat", connections:"Connexions", settings:"Paramètres", conversationMode:"Mode de conversation", save:"Enregistrer", deleteAllChats:"Supprimer tous les chats", deleteAccount:"Supprimer le compte", selectedTool:"Outil sélectionné :", canvas:"Canvas", drawBoard:"Tableau de dessin", liveApp:"Appli live", clear:"Effacer", askAiDrawing:"Demander à l'IA à propos de mon dessin", captureAnalyze:"Capturer et analyser", toolUpload:"Téléverser une image", toolImage:"Créer une image", toolCode:"Écrire du code", toolMusic:"Créer de la musique", toolVideo:"Créer une vidéo", toolCanvas:"Studio Canvas", inputPlaceholder:"Écrivez un message...", emptyTitle:"Je suis Saleh AI", emptySubtitle:"Posez vos questions, créez images, musique, vidéo, code ou ouvrez le canvas.", thinking:"Je réfléchis", playAudio:"Lire l'audio", openInCanvas:"Ouvrir dans Canvas", playMusic:"Lire la musique", deleteChat:"Supprimer le chat", saved:"Enregistré", confirmDeleteAccount:"Supprimer définitivement votre compte et tous les chats ?", accountDeleted:"Compte supprimé", chatsDeleted:"Tous les chats supprimés" },
+        pt: { loginSubtitle:"Entre na sua conta", registerSubtitle:"Criar nova conta", firstName:"Nome", lastName:"Sobrenome", dob:"Data de nascimento", callMeBy:"Me chame de:", prefFirst:"Apenas nome", prefLast:"Apenas sobrenome", prefFull:"Nome completo", prefNick:"Meu apelido", nickname:"Apelido", aiPersonality:"Personalidade da IA", modeConcise:"Profissional e breve", modeFriendly:"Amigável e direto", modeEmotional:"Amigo emocional (caloroso, breve)", email:"E-mail", password:"Senha", appLanguage:"Idioma do app", logIn:"Entrar", createAccount:"Criar conta", support:"Suporte", newChat:"Nova conversa", connections:"Conexões", settings:"Configurações", conversationMode:"Modo de conversa", save:"Salvar", deleteAllChats:"Excluir todas as conversas", deleteAccount:"Excluir conta", selectedTool:"Ferramenta selecionada:", canvas:"Canvas", drawBoard:"Quadro de desenho", liveApp:"App ao vivo", clear:"Limpar", askAiDrawing:"Perguntar à IA sobre meu desenho", captureAnalyze:"Capturar e analisar", toolUpload:"Enviar imagem", toolImage:"Criar imagem", toolCode:"Escrever código", toolMusic:"Criar música", toolVideo:"Criar vídeo", toolCanvas:"Estúdio Canvas", inputPlaceholder:"Digite uma mensagem...", emptyTitle:"Eu sou Saleh AI", emptySubtitle:"Pergunte, crie imagens, música, vídeo, código ou abra o canvas.", thinking:"Pensando", playAudio:"Reproduzir áudio", openInCanvas:"Abrir no Canvas", playMusic:"Tocar música", deleteChat:"Excluir conversa", saved:"Salvo", confirmDeleteAccount:"Excluir sua conta e todas as conversas permanentemente?", accountDeleted:"Conta excluída", chatsDeleted:"Todas as conversas excluídas" },
+        ar: { loginSubtitle:"سجّل الدخول إلى حسابك", registerSubtitle:"إنشاء حساب جديد", firstName:"الاسم", lastName:"اللقب", dob:"تاريخ الميلاد", callMeBy:"نادني بـ:", prefFirst:"الاسم فقط", prefLast:"اللقب فقط", prefFull:"الاسم الكامل", prefNick:"كنيتي", nickname:"الكنية", aiPersonality:"شخصية الذكاء الاصطناعي", modeConcise:"مهني ومختصر", modeFriendly:"ودّي ومباشر", modeEmotional:"صديق عاطفي (دافئ ومختصر)", email:"البريد الإلكتروني", password:"كلمة المرور", appLanguage:"لغة التطبيق", logIn:"تسجيل الدخول", createAccount:"إنشاء حساب", support:"الدعم", newChat:"محادثة جديدة", connections:"الاتصالات", settings:"الإعدادات", conversationMode:"نمط المحادثة", save:"حفظ", deleteAllChats:"حذف كل المحادثات", deleteAccount:"حذف الحساب", selectedTool:"الأداة المختارة:", canvas:"كانفاس", drawBoard:"لوح الرسم", liveApp:"تطبيق مباشر", clear:"مسح", askAiDrawing:"اسأل الذكاء الاصطناعي عن رسمي", captureAnalyze:"التقاط وتحليل", toolUpload:"تحميل صورة", toolImage:"إنشاء صورة", toolCode:"كتابة كود", toolMusic:"إنشاء موسيقى", toolVideo:"إنشاء فيديو", toolCanvas:"استوديو كانفاس", inputPlaceholder:"اكتب رسالة...", emptyTitle:"أنا Saleh AI", emptySubtitle:"اسأل أي شيء، أنشئ صورًا وموسيقى وفيديو وكودًا أو افتح الكانفاس.", thinking:"أفكر", playAudio:"تشغيل الصوت", openInCanvas:"فتح في كانفاس", playMusic:"تشغيل الموسيقى", deleteChat:"حذف المحادثة", saved:"تم الحفظ", confirmDeleteAccount:"حذف حسابك وكل المحادثات نهائيًا؟", accountDeleted:"تم حذف الحساب", chatsDeleted:"تم حذف كل المحادثات" },
+        ja: { loginSubtitle:"アカウントにログイン", registerSubtitle:"新しいアカウントを作成", firstName:"名", lastName:"姓", dob:"生年月日", callMeBy:"呼び方:", prefFirst:"名のみ", prefLast:"姓のみ", prefFull:"フルネーム", prefNick:"ニックネーム", nickname:"ニックネーム", aiPersonality:"AIの性格", modeConcise:"プロフェッショナルで簡潔", modeFriendly:"フレンドリーで率直", modeEmotional:"感情的な友人（温かく短め）", email:"メール", password:"パスワード", appLanguage:"アプリの言語", logIn:"ログイン", createAccount:"アカウント作成", support:"サポート", newChat:"新しいチャット", connections:"連携", settings:"設定", conversationMode:"会話モード", save:"保存", deleteAllChats:"すべてのチャットを削除", deleteAccount:"アカウントを削除", selectedTool:"選択したツール:", canvas:"キャンバス", drawBoard:"描画ボード", liveApp:"ライブアプリ", clear:"クリア", askAiDrawing:"描いた絵についてAIに聞く", captureAnalyze:"撮影して解析", toolUpload:"画像をアップロード", toolImage:"画像を作成", toolCode:"コードを書く", toolMusic:"音楽を作成", toolVideo:"動画を作成", toolCanvas:"キャンバススタジオ", inputPlaceholder:"メッセージを入力...", emptyTitle:"私はSaleh AIです", emptySubtitle:"質問したり、画像・音楽・動画・コードを作成したり、キャンバスを開けます。", thinking:"考えています", playAudio:"音声を再生", openInCanvas:"キャンバスで開く", playMusic:"音楽を再生", deleteChat:"チャットを削除", saved:"保存しました", confirmDeleteAccount:"アカウントとすべてのチャットを完全に削除しますか?", accountDeleted:"アカウントを削除しました", chatsDeleted:"すべてのチャットを削除しました" },
+        ko: { loginSubtitle:"계정에 로그인", registerSubtitle:"새 계정 만들기", firstName:"이름", lastName:"성", dob:"생년월일", callMeBy:"호칭:", prefFirst:"이름만", prefLast:"성만", prefFull:"전체 이름", prefNick:"내 별명", nickname:"별명", aiPersonality:"AI 성격", modeConcise:"전문적이고 간결", modeFriendly:"친근하고 직설적", modeEmotional:"감성적인 친구 (따뜻하고 짧게)", email:"이메일", password:"비밀번호", appLanguage:"앱 언어", logIn:"로그인", createAccount:"계정 만들기", support:"지원", newChat:"새 채팅", connections:"연결", settings:"설정", conversationMode:"대화 모드", save:"저장", deleteAllChats:"모든 채팅 삭제", deleteAccount:"계정 삭제", selectedTool:"선택한 도구:", canvas:"캔버스", drawBoard:"그림판", liveApp:"라이브 앱", clear:"지우기", askAiDrawing:"내 그림에 대해 AI에 묻기", captureAnalyze:"촬영 후 분석", toolUpload:"이미지 업로드", toolImage:"이미지 생성", toolCode:"코드 작성", toolMusic:"음악 생성", toolVideo:"영상 생성", toolCanvas:"캔버스 스튜디오", inputPlaceholder:"메시지를 입력하세요...", emptyTitle:"저는 Saleh AI입니다", emptySubtitle:"무엇이든 묻고, 이미지·음악·영상·코드를 만들거나 캔버스를 열어보세요.", thinking:"생각 중", playAudio:"오디오 재생", openInCanvas:"캔버스에서 열기", playMusic:"음악 재생", deleteChat:"채팅 삭제", saved:"저장됨", confirmDeleteAccount:"계정과 모든 채팅을 영구 삭제할까요?", accountDeleted:"계정이 삭제되었습니다", chatsDeleted:"모든 채팅이 삭제되었습니다" },
+        zh: { loginSubtitle:"登录您的账户", registerSubtitle:"创建新账户", firstName:"名", lastName:"姓", dob:"出生日期", callMeBy:"称呼我:", prefFirst:"仅名", prefLast:"仅姓", prefFull:"全名", prefNick:"我的昵称", nickname:"昵称", aiPersonality:"AI 个性", modeConcise:"专业简洁", modeFriendly:"友好直接", modeEmotional:"感性朋友（温暖简短）", email:"邮箱", password:"密码", appLanguage:"应用语言", logIn:"登录", createAccount:"创建账户", support:"支持", newChat:"新对话", connections:"连接", settings:"设置", conversationMode:"对话模式", save:"保存", deleteAllChats:"删除所有对话", deleteAccount:"删除账户", selectedTool:"已选工具:", canvas:"画布", drawBoard:"画板", liveApp:"实时应用", clear:"清除", askAiDrawing:"让 AI 看我的画", captureAnalyze:"拍摄并分析", toolUpload:"上传图片", toolImage:"生成图片", toolCode:"编写代码", toolMusic:"生成音乐", toolVideo:"生成视频", toolCanvas:"画布工作室", inputPlaceholder:"输入消息...", emptyTitle:"我是 Saleh AI", emptySubtitle:"随便问，生成图片、音乐、视频、代码，或打开画布。", thinking:"思考中", playAudio:"播放音频", openInCanvas:"在画布中打开", playMusic:"播放音乐", deleteChat:"删除对话", saved:"已保存", confirmDeleteAccount:"永久删除账户和所有对话?", accountDeleted:"账户已删除", chatsDeleted:"所有对话已删除" }
+    };
+
+    function t(key) {
+        const pack = I18N[uiLang] || EN;
+        return pack[key] || EN[key] || key;
+    }
+
+    Object.assign(I18N.az, {
+        speakLanguage:"AI-ın danışdığı dil",
+        speakLanguageHint:"Bağlı (Avto): AI sən hansı dildə yazsan, o dildə cavab verir. Dil seçsən, yalnız o dildə danışacaq.",
+        community:"İcma",
+        communityEmpty:"Hələ heç nə dərc olunmadı. Musiqi, oyun və ya video yarat və burada dərc et.",
+        publish:"Dərc et", published:"İcmada dərc olundu", copyLink:"Linki kopyala", shareNotFound:"Bu paylaşım bu cihazda tapılmadı",
+        connect:"Qoş", disconnect:"Ayır", connected:"Qoşuldu", disconnected:"Ayrıldı",
+        alreadyVoted:"Artıq səs vermisən", noVoice:"Bu dil üçün cihazında səs yoxdur",
+        ultraLimit:"Ultra Pro Max gündə yalnız 3 dəfə istifadə oluna bilər",
+        ultraLeft:"Ultra Pro Max: bu həftə {n} istifadə qaldı"
+    });
+    Object.assign(EN, {
+        guestMode:"Continue as guest", guest:"Guest", forgotPassword:"Forgot password?",
+        resetSent:"Password reset link sent to your email", newPasswordHint:"Enter your new password:",
+        resetPassword:"Reset password", passwordUpdated:"Password updated", passwordTooShort:"Password must be at least 6 characters",
+        wrongCredentials:"This email is not registered or the password is wrong", emailExists:"This email is already registered — log in instead",
+        checkEmailConfirm:"Confirmation link sent to your email — click it to activate your account",
+        enterEmailFirst:"Enter your email first", connectionError:"Connection error — try again"
+    });
+    Object.assign(I18N.az, {
+        guestMode:"Qonaq kimi davam et", guest:"Qonaq", forgotPassword:"Şifrəni unutdum?",
+        resetSent:"Şifrə yeniləmə linki e-poçtunuza göndərildi", newPasswordHint:"Yeni şifrənizi yazın:",
+        resetPassword:"Şifrəni yenilə", passwordUpdated:"Şifrə yeniləndi", passwordTooShort:"Şifrə ən azı 6 simvol olmalıdır",
+        wrongCredentials:"Bu e-poçt qeydiyyatda yoxdur və ya şifrə yanlışdır", emailExists:"Bu e-poçt artıq qeydiyyatdadır — daxil olun",
+        checkEmailConfirm:"Təsdiq linki e-poçtunuza göndərildi — linkə klikləyib hesabı aktivləşdirin",
+        enterEmailFirst:"Əvvəlcə e-poçtunuzu yazın", connectionError:"Bağlantı xətası — yenidən cəhd edin"
+    });
+    Object.assign(I18N.tr, {
+        speakLanguage:"AI'nın konuştuğu dil",
+        speakLanguageHint:"Kapalı (Oto): AI hangi dilde yazarsan o dilde yanıtlar. Bir dil seçersen sadece onu kullanır.",
+        community:"Topluluk", communityEmpty:"Henüz bir şey yayınlanmadı.",
+        publish:"Yayınla", published:"Toplulukta yayınlandı", copyLink:"Bağlantıyı kopyala", shareNotFound:"Bu paylaşım bu cihazda bulunamadı",
+        connect:"Bağlan", disconnect:"Bağlantıyı kes", connected:"Bağlandı", disconnected:"Bağlantı kesildi",
+        alreadyVoted:"Zaten oy verdin", noVoice:"Bu dil için cihazında ses yok",
+        ultraLimit:"Ultra Pro Max günde 3 kullanımla sınırlı", ultraLeft:"Ultra Pro Max: bu hafta {n} kullanım kaldı"
+    });
+
+    /* ================= TOOLS / CONNECTIONS ================= */
+    const TOOLS = [
+        { id:"upload", icon:"image-plus", key:"toolUpload" },
+        { id:"image",  icon:"sparkles",   key:"toolImage" },
+        { id:"code",   icon:"code-2",     key:"toolCode" },
+        { id:"music",  icon:"music",      key:"toolMusic" },
+        { id:"video",  icon:"clapperboard", key:"toolVideo" },
+        { id:"canvas", icon:"pen-tool",   key:"toolCanvas" }
+    ];
+
+    const CONNECTIONS = [
+        { id:"github", name:"GitHub", svg:'<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" class="w-4 h-4 inline-block"><path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.55v-2.06c-3.2.7-3.88-1.4-3.88-1.4-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.97.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>', features:["Read and create repositories","Commit and push generated code","Open pull requests and issues"] },
+        { id:"lovable", name:"Lovable", svg:'<svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12 21s-7.5-4.7-9.3-9A5.4 5.4 0 0 1 12 6.6 5.4 5.4 0 0 1 21.3 12C19.5 16.3 12 21 12 21Z"/></svg>', features:["Build and edit web apps with AI","Deploy a live preview link","Keep the code in sync with GitHub"] },
+        { id:"gmail", name:"Gmail", svg:'<svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h15A2.5 2.5 0 0 1 22 6.5v11A2.5 2.5 0 0 1 19.5 20h-15A2.5 2.5 0 0 1 2 17.5v-11Zm2.6-.5L12 12l7.4-6H4.6Z"/></svg>', features:["Read and summarise your inbox","Draft and send emails for you","Find attachments and follow-ups"] },
+        { id:"meet", name:"Meet", svg:'<svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M3 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm14 3.5 4-3v9l-4-3v-3Z"/></svg>', features:["Create instant meeting links","Schedule calls with participants","Summarise a meeting afterwards"] },
+        { id:"calendar", name:"Calendar", svg:'<svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7ZM5 9h14v10H5V9Z"/></svg>', features:["See your upcoming events","Create and move events","Find a free slot for a meeting"] },
+        { id:"drive", name:"Drive", svg:'<svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M8.2 2h7.6l6.2 10.8-3.8 6.6H5.8L2 12.8 8.2 2Zm.9 2.6L4.6 12.4h8.9L9.1 4.6Z"/></svg>', features:["Open and read your files","Save generated files to Drive","Search documents by content"] }
+    ];
+
+    /* ================= INIT ================= */
+    window.addEventListener('load', () => {
+        buildLangSelectors();
+        buildPlusMenu();
+        buildConnections();
+        applyI18n();
+        initSpeechRecognition();
+        initDrawing();
+        document.getElementById('engine-selector').value = engine;
+
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = () => { availableVoices = window.speechSynthesis.getVoices(); };
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+
+        // Password-recovery link from the email lands here: show the new-password panel.
+        const isRecovery = /type=recovery/.test(window.location.hash);
+        if (isRecovery && sb) {
+            document.getElementById('reset-panel').classList.remove('hidden');
+        } else {
+            const savedUser = localStorage.getItem('saleh_ai_user');
+            if (savedUser) {
+                currentUser = savedUser;
+                const usersDB = JSON.parse(localStorage.getItem('saleh_ai_users_db')) || {};
+                currentUserData = usersDB[currentUser] || { prefName: "User", personality: "concise" };
+                showAppScreen();
+                setTimeout(openSharedFromHash, 400);
+            } else if (sb) {
+                sb.auth.getSession().then(({ data }) => {
+                    if (data && data.session && data.session.user && data.session.user.email) {
+                        const email = data.session.user.email;
+                        processLogin(email, loadProfile(email, data.session.user.user_metadata));
+                    }
+                }).catch(() => {});
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('plus-menu');
+            const btn = document.getElementById('plus-btn');
+            if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+    });
+
+    function buildLangSelectors() {
+        const speak = document.getElementById('settings-speak-lang');
+        if (speak) {
+            speak.innerHTML = SPEAK_LANGS.map(([c,n]) => `<option value="${c}">${n}</option>`).join('');
+            speak.value = getSpeakLang();
+        }
+        const uiOpts = UI_LANGS.map(([c,n]) => `<option value="${c}">${n}</option>`).join('');
+        ['ui-lang-selector','settings-ui-lang'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.innerHTML = uiOpts; el.value = uiLang; }
+        });
+    }
+
+    function getSpeakLang() {
+        return localStorage.getItem('saleh_speak_lang') || 'auto';
+    }
+
+    function setSpeakLang(code) {
+        localStorage.setItem('saleh_speak_lang', code);
+        const el = document.getElementById('settings-speak-lang');
+        if (el) el.value = code;
+    }
+
+    /* Detect the language of a piece of text so "Auto" mode can mirror it. */
+    function detectLang(text) {
+        const s = String(text || '');
+        if (/[\u0600-\u06FF]/.test(s)) return 'ar-SA';
+        if (/[\u0400-\u04FF]/.test(s)) return 'ru-RU';
+        if (/[\u3040-\u30FF]/.test(s)) return 'ja-JP';
+        if (/[\uAC00-\uD7AF]/.test(s)) return 'ko-KR';
+        if (/[\u4E00-\u9FFF]/.test(s)) return 'zh-CN';
+        const low = ' ' + s.toLowerCase() + ' ';
+        if (/[əğışöüçĞİŞÖÜÇƏ]/.test(s) && /(və|mən|sən|üçün|olar|nədir|salam|necə|edir|deyil)/i.test(s)) return 'az-AZ';
+        if (/[ğışöüçİ]/.test(s) && /(ve|ben|sen|için|nedir|merhaba|nasıl|değil|bir)/i.test(s)) return 'tr-TR';
+        if (/(¿|¡)/.test(s) || / (hola|gracias|porque|cómo|qué|puedes|quiero) /i.test(low)) return 'es-ES';
+        if (/ (bonjour|merci|pourquoi|comment|je suis|s'il) /i.test(low)) return 'fr-FR';
+        if (/ (hallo|danke|warum|wie geht|ich bin|nicht) /i.test(low)) return 'de-DE';
+        if (/ (olá|obrigado|porque|você|como está) /i.test(low)) return 'pt-BR';
+        if (/ (ciao|grazie|perché|come stai) /i.test(low)) return 'it-IT';
+        return 'en-US';
+    }
+
+    function setUiLang(code) {
+        uiLang = code;
+        localStorage.setItem('saleh_ui_lang', code);
+        ['ui-lang-selector','settings-ui-lang'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = code;
+        });
+        applyI18n();
+    }
+
+    function applyI18n() {
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+        document.documentElement.dir = (uiLang === 'ar') ? 'rtl' : 'ltr';
+        const input = document.getElementById('chat-input');
+        if (input) input.placeholder = t('inputPlaceholder');
+        const btn = document.getElementById('auth-btn');
+        if (btn) btn.textContent = isLoginMode ? t('logIn') : t('createAccount');
+        const tg = document.getElementById('auth-toggle-btn');
+        if (tg) tg.textContent = isLoginMode ? t('createAccount') : t('logIn');
+        const sub = document.getElementById('auth-subtitle');
+        if (sub) sub.textContent = isLoginMode ? t('loginSubtitle') : t('registerSubtitle');
+        buildPlusMenu();
+        if (activeMode) setMode(activeMode, true);
+        if (activeChatId && chats[activeChatId] && chats[activeChatId].messages.length === 0) loadChat(activeChatId);
+        lucide.createIcons();
+    }
+
+    function buildPlusMenu() {
+        const menu = document.getElementById('plus-menu');
+        if (!menu) return;
+        menu.innerHTML = TOOLS.map(tool => `
+            <button onclick="pickTool('${tool.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-sm text-slate-200 text-left">
+                <i data-lucide="${tool.icon}" class="w-4 h-4 text-indigo-400"></i> ${t(tool.key)}
+            </button>`).join('');
+        lucide.createIcons();
+    }
+
+    function buildConnections() {
+        const list = document.getElementById('connections-list');
+        const connected = JSON.parse(localStorage.getItem('saleh_connections') || '{}');
+        list.innerHTML = CONNECTIONS.map(c => `
+            <button onclick="openConnection('${c.id}')" class="flex items-center gap-2 bg-slate-800/70 border ${connected[c.id] ? 'border-emerald-500/60' : 'border-slate-700'} hover:border-indigo-500 rounded-xl px-2.5 py-2 text-[11px] text-slate-200 text-left">
+                <span class="text-indigo-400">${c.svg}</span> <span class="truncate">${c.name}</span>
+                ${connected[c.id] ? '<span class="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' : ''}
+            </button>`).join('');
+        lucide.createIcons();
+    }
+
+    let activeConnId = null;
+
+    function openConnection(id) {
+        const c = CONNECTIONS.find(x => x.id === id);
+        if (!c) return;
+        activeConnId = id;
+        document.getElementById('conn-title').innerHTML = `<span class="text-indigo-400">${c.svg}</span> ${c.name}`;
+        document.getElementById('conn-features').innerHTML = c.features.map(f => `
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5"></i><span>${f}</span></li>`).join('');
+        renderConnAction();
+        document.getElementById('connection-modal').classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    function renderConnAction() {
+        const connected = JSON.parse(localStorage.getItem('saleh_connections') || '{}');
+        const btn = document.getElementById('conn-action');
+        const on = !!connected[activeConnId];
+        btn.textContent = on ? t('disconnect') : t('connect');
+        btn.className = `w-full py-2.5 rounded-xl font-medium ${on ? 'bg-slate-800 border border-slate-600 hover:bg-slate-700' : 'bg-indigo-600 hover:bg-indigo-700'}`;
+    }
+
+    function toggleConnected() {
+        const connected = JSON.parse(localStorage.getItem('saleh_connections') || '{}');
+        connected[activeConnId] = !connected[activeConnId];
+        localStorage.setItem('saleh_connections', JSON.stringify(connected));
+        renderConnAction();
+        buildConnections();
+        showToast(connected[activeConnId] ? t('connected') : t('disconnected'), "success");
+    }
+
+    function closeConnection() { document.getElementById('connection-modal').classList.add('hidden'); }
+
+    /* ================= COMMUNITY ================= */
+    let communityCache = [];
+    function loadCommunity() { return communityCache; }
+    function myVotes() { return JSON.parse(localStorage.getItem('saleh_votes') || '{}'); }
+    function myItems() { return JSON.parse(localStorage.getItem('saleh_my_items') || '[]'); }
+    async function fetchCommunity() {
+        try {
+            const r = await fetch('/api/public/community');
+            if (r.ok) communityCache = await r.json();
+        } catch (e) { console.error(e); }
+        return communityCache;
+    }
+
+    /* A shareable link for a published item. */
+    function shareLink(id) {
+        let base = location.origin;
+        try { if (window.top && window.top.location.origin) base = window.top.location.origin; } catch (e) {}
+        return `${base}/play/${id}`;
+    }
+
+    window.copyShareLink = function(id) {
+        const url = shareLink(id);
+        const done = () => showToast(url, "success");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done).catch(done);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = url; document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            ta.remove(); done();
+        }
+    };
+
+    window.publishItem = async function(chatId, idx) {
+        const msg = chats[chatId] && chats[chatId].messages[idx];
+        if (!msg) return;
+        const id = 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        const item = {
+            id,
+            author: ((currentUserData && currentUserData.prefName) || 'User').slice(0, 80),
+            kind: msg.music ? 'music' : (msg.video ? 'video' : 'app'),
+            title: String(msg.text).replace(/<[^>]*>/g, ' ').trim().slice(0, 60) || 'Untitled',
+            music: msg.music || null,
+            html: msg.html || null,
+            video: msg.video || null
+        };
+        try {
+            const r = await fetch('/api/public/community', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+            });
+            if (!r.ok) throw new Error('publish');
+        } catch (e) { showToast('Publish failed, try again', "error"); return; }
+        localStorage.setItem('saleh_my_items', JSON.stringify([id, ...myItems()].slice(0, 200)));
+        showToast(t('published'), "success");
+        copyShareLink(id);
+        openCommunity();
+    };
+
+    async function openCommunity() {
+        document.getElementById('community-modal').classList.remove('hidden');
+        renderCommunity();
+        await fetchCommunity();
+        renderCommunity();
+    }
+    function closeCommunity() { document.getElementById('community-modal').classList.add('hidden'); }
+
+    function renderCommunity() {
+        const list = document.getElementById('community-list');
+        const items = loadCommunity();
+        if (!items.length) {
+            list.innerHTML = `<p class="text-sm text-slate-400">${t('communityEmpty')}</p>`;
+            return;
+        }
+        const mine = myItems();
+        list.innerHTML = items.map(p => `
+            <div class="bg-slate-800/70 border border-slate-700 rounded-xl p-4 flex items-center gap-3 flex-wrap">
+                <i data-lucide="${p.kind === 'music' ? 'music-4' : (p.kind === 'video' ? 'film' : 'gamepad-2')}" class="w-5 h-5 text-indigo-400"></i>
+                <div class="min-w-0 flex-1">
+                    <div class="font-medium text-sm truncate">${escapeHtml(p.title)}</div>
+                    <div class="text-[11px] text-slate-400">${escapeHtml(p.author)}</div>
+                </div>
+                <button onclick="playCommunity('${p.id}')" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700">${p.kind === 'music' ? t('playMusic') : t('openInCanvas')}</button>
+                <button onclick="copyShareLink('${p.id}')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-indigo-500 inline-flex items-center gap-1"><i data-lucide="link" class="w-3.5 h-3.5"></i> ${t('copyLink')}</button>
+                <button onclick="voteCommunity('${p.id}',1)" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-emerald-500 inline-flex items-center gap-1"><i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> ${p.likes || 0}</button>
+                <button onclick="voteCommunity('${p.id}',-1)" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-red-500 inline-flex items-center gap-1"><i data-lucide="thumbs-down" class="w-3.5 h-3.5"></i> ${p.dislikes || 0}</button>
+            </div>`).join('');
+        lucide.createIcons();
+    }
+
+    window.voteCommunity = async function(id, dir) {
+        const p = communityCache.find(x => x.id === id);
+        if (!p) return;
+        const votes = myVotes();
+        const prev = votes[id] || 0;
+        if (prev === dir) return showToast(t('alreadyVoted'), "info");
+        if (prev === 1) p.likes = Math.max(0, (p.likes || 0) - 1);
+        if (prev === -1) p.dislikes = Math.max(0, (p.dislikes || 0) - 1);
+        if (dir === 1) p.likes = (p.likes || 0) + 1; else p.dislikes = (p.dislikes || 0) + 1;
+        votes[id] = dir;
+        localStorage.setItem('saleh_votes', JSON.stringify(votes));
+        renderCommunity();
+        fetch('/api/public/community', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'vote', id, dir, prev })
+        }).catch(() => {});
+    };
+
+    function playItem(p) {
+        if (p.kind === 'music' && p.music) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            playSong(audioCtx, p.music);
+            showToast(t('playMusic'), "success");
+        } else if (p.html) {
+            closeCommunity();
+            openCanvasWithHtml(p.html);
+        } else if (p.video) {
+            closeCommunity();
+            openCanvasWithHtml(`<body style="margin:0;background:#000;display:grid;place-items:center;height:100vh"><video src="${p.video}" controls autoplay playsinline style="max-width:100%;max-height:100%"></video></body>`);
+        }
+    }
+
+    window.playCommunity = function(id) {
+        const p = communityCache.find(x => x.id === id);
+        if (p) playItem(p);
+    };
+
+    /* Open a published item straight from a share link (#play=<id>) - works on any device. */
+    async function openSharedFromHash() {
+        const m = (location.hash || '').match(/play=([\w-]+)/);
+        if (!m) return;
+        try {
+            const r = await fetch('/api/public/community?id=' + encodeURIComponent(m[1]));
+            const rows = r.ok ? await r.json() : [];
+            if (!rows.length) { showToast(t('shareNotFound'), "error"); return; }
+            playItem(rows[0]);
+        } catch (e) { showToast(t('shareNotFound'), "error"); }
+    }
+
+
+    function toggleConnections() {
+        document.getElementById('connections-list').classList.toggle('hidden');
+    }
+
+    function togglePlusMenu() { document.getElementById('plus-menu').classList.toggle('hidden'); }
+
+    function pickTool(id) {
+        document.getElementById('plus-menu').classList.add('hidden');
+        if (id === 'upload') { clearMode(); triggerGallery(); return; }
+        if (id === 'canvas') { setMode('canvas'); document.getElementById('chat-input').focus(); return; }
+        setMode(id);
+    }
+
+    function setMode(id, silent) {
+        activeMode = id;
+        const tool = TOOLS.find(x => x.id === id);
+        document.getElementById('mode-chip-label').textContent = tool ? t(tool.key) : id;
+        const row = document.getElementById('mode-chip-row');
+        row.classList.remove('hidden'); row.classList.add('flex');
+        if (!silent) document.getElementById('chat-input').focus();
+        lucide.createIcons();
+    }
+
+    function clearMode() {
+        activeMode = null;
+        const row = document.getElementById('mode-chip-row');
+        row.classList.add('hidden'); row.classList.remove('flex');
+    }
+
+    /* ================= TOASTS ================= */
+    function showToast(message, type = "info") {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        const bg = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-emerald-600' : 'bg-indigo-600';
+        toast.className = `${bg} text-white px-5 py-3 rounded-xl shadow-2xl border border-white/10 text-sm flex items-center gap-3 toast-enter font-medium`;
+        const icon = type === 'error' ? 'alert-octagon' : type === 'success' ? 'check-circle-2' : 'info';
+        toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i> ${message}`;
+        container.appendChild(toast);
+        lucide.createIcons();
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+
+    /* ================= AUTH ================= */
+    function toggleAuthMode() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('register-fields').classList.toggle('hidden', isLoginMode);
+        applyI18n();
+    }
+
+    function toggleNicknameField() {
+        const pref = document.getElementById('auth-preference').value;
+        document.getElementById('nickname-field').classList.toggle('hidden', pref !== 'nickname');
+    }
+
+    function cacheProfile(email, profile) {
+        const usersDB = JSON.parse(localStorage.getItem('saleh_ai_users_db')) || {};
+        usersDB[email] = profile;
+        localStorage.setItem('saleh_ai_users_db', JSON.stringify(usersDB));
+    }
+
+    function loadProfile(email, meta) {
+        const usersDB = JSON.parse(localStorage.getItem('saleh_ai_users_db')) || {};
+        const cached = usersDB[email];
+        const profile = (cached && typeof cached === 'object') ? cached : {};
+        ['fname','lname','dob','prefName','personality'].forEach(k => { if (meta && meta[k]) profile[k] = meta[k]; });
+        if (!profile.prefName) profile.prefName = email.split('@')[0];
+        if (!profile.personality) profile.personality = 'concise';
+        cacheProfile(email, profile);
+        return profile;
+    }
+
+    async function handleAuth() {
+        const email = document.getElementById('auth-email').value.trim();
+        const password = document.getElementById('auth-password').value.trim();
+        if (!email || !password) return showToast(t('enterEmailFirst'), "error");
+        if (!sb) return showToast(t('connectionError'), "error");
+        const btn = document.getElementById('auth-btn');
+        btn.disabled = true;
+        try {
+            if (!isLoginMode) {
+                const fname = document.getElementById('auth-fname').value.trim();
+                const lname = document.getElementById('auth-lname').value.trim();
+                const dob = document.getElementById('auth-dob').value;
+                const pref = document.getElementById('auth-preference').value;
+                const nickname = document.getElementById('auth-nickname').value.trim();
+                const personality = document.getElementById('auth-personality').value;
+                if (!fname || !lname || !dob) return showToast("Name, surname and date of birth required", "error");
+                if (pref === 'nickname' && !nickname) return showToast("Nickname required", "error");
+                let prefName = fname;
+                if (pref === 'last') prefName = lname;
+                else if (pref === 'full') prefName = fname + ' ' + lname;
+                else if (pref === 'nickname') prefName = nickname;
+                const profile = { fname, lname, dob, prefName, personality };
+                const { data, error } = await sb.auth.signUp({
+                    email, password,
+                    options: { data: profile, emailRedirectTo: window.location.origin + '/saleh-ai.html' }
+                });
+                if (error) {
+                    if (/already|registered|exists/i.test(error.message)) showToast(t('emailExists'), "error");
+                    else showToast(error.message, "error");
+                    return;
+                }
+                cacheProfile(email, profile);
+                if (data.session) {
+                    showToast(t('saved'), "success");
+                    processLogin(email, profile);
+                } else {
+                    showToast(t('checkEmailConfirm'), "success");
+                }
+            } else {
+                const { data, error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) {
+                    if (/invalid login/i.test(error.message)) showToast(t('wrongCredentials'), "error");
+                    else if (/confirm/i.test(error.message)) showToast(t('checkEmailConfirm'), "error");
+                    else showToast(error.message, "error");
+                    return;
+                }
+                const meta = (data.user && data.user.user_metadata) || {};
+                processLogin(email, loadProfile(email, meta));
+            }
+        } catch (e) {
+            console.error(e);
+            showToast(t('connectionError'), "error");
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function continueAsGuest() {
+        processLogin('guest@local', { prefName: t('guest'), personality: 'friendly', guest: true });
+    }
+
+    async function forgotPassword() {
+        const email = document.getElementById('auth-email').value.trim();
+        if (!email) return showToast(t('enterEmailFirst'), "error");
+        if (!sb) return showToast(t('connectionError'), "error");
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/saleh-ai.html' });
+        if (error) return showToast(error.message, "error");
+        showToast(t('resetSent'), "success");
+    }
+
+    async function applyNewPassword() {
+        const pw = document.getElementById('reset-password').value.trim();
+        if (pw.length < 6) return showToast(t('passwordTooShort'), "error");
+        if (!sb) return showToast(t('connectionError'), "error");
+        const { error } = await sb.auth.updateUser({ password: pw });
+        if (error) return showToast(error.message, "error");
+        showToast(t('passwordUpdated'), "success");
+        document.getElementById('reset-panel').classList.add('hidden');
+        history.replaceState(null, '', window.location.pathname);
+    }
+
+    function processLogin(email, dataObj = null) {
+        currentUser = email;
+        if (!dataObj) {
+            const usersDB = JSON.parse(localStorage.getItem('saleh_ai_users_db')) || {};
+            dataObj = typeof usersDB[email] === 'object' ? usersDB[email] : { prefName: "User", personality: "concise" };
+        }
+        currentUserData = dataObj;
+        localStorage.setItem('saleh_ai_user', email);
+        showAppScreen();
+    }
+
+    function logout() {
+        if (sb) sb.auth.signOut();
+        localStorage.removeItem('saleh_ai_user');
+        currentUser = null;
+        document.getElementById('app-screen').classList.add('hidden');
+        document.getElementById('auth-screen').classList.remove('hidden');
+    }
+
+    function showSupport() { showToast("oyuncusaleh@gmail.com", "info"); }
+
+    function showAppScreen() {
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('app-screen').classList.remove('hidden');
+        document.getElementById('current-user-email').innerText = currentUser;
+        const saved = localStorage.getItem(`saleh_chats_${currentUser}`);
+        chats = saved ? JSON.parse(saved) : {};
+        renderHistory();
+        const ids = Object.keys(chats);
+        if (ids.length > 0) loadChat(ids[ids.length - 1]); else createNewChat();
+    }
+
+    /* ================= SETTINGS / DELETION ================= */
+    function openSettings() {
+        document.getElementById('settings-personality').value = (currentUserData && currentUserData.personality) || 'concise';
+        document.getElementById('settings-ui-lang').value = uiLang;
+        document.getElementById('settings-modal').classList.remove('hidden');
+        lucide.createIcons();
+    }
+    function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+
+    function savePersonality() {
+        const mode = document.getElementById('settings-personality').value;
+        const usersDB = JSON.parse(localStorage.getItem('saleh_ai_users_db')) || {};
+        if (usersDB[currentUser] && typeof usersDB[currentUser] === 'object') {
+            usersDB[currentUser].personality = mode;
+            localStorage.setItem('saleh_ai_users_db', JSON.stringify(usersDB));
+        }
+        if (currentUserData) currentUserData.personality = mode;
+        showToast(t('saved'), "success");
+        closeSettings();
+    }
+
+    function deleteChat(id, ev) {
+        if (ev) ev.stopPropagation();
+        delete chats[id];
+        saveChatsToStorage();
+        renderHistory();
+        const ids = Object.keys(chats);
+        if (activeChatId === id) { if (ids.length) loadChat(ids[ids.length - 1]); else createNewChat(); }
+    }
+
+    function deleteAllChats() {
+        chats = {};
+        localStorage.removeItem(`saleh_chats_${currentUser}`);
+        renderHistory();
+        createNewChat();
+        showToast(t('chatsDeleted'), "success");
+        closeSettings();
+    }
+
+    function deleteAccount() {
+        if (!confirm(t('confirmDeleteAccount'))) return;
+        const usersDB = JSON.parse(localStorage.getItem('saleh_ai_users_db')) || {};
+        delete usersDB[currentUser];
+        localStorage.setItem('saleh_ai_users_db', JSON.stringify(usersDB));
+        localStorage.removeItem(`saleh_chats_${currentUser}`);
+        localStorage.removeItem('saleh_ai_user');
+        chats = {}; currentUser = null; currentUserData = null;
+        closeSettings();
+        document.getElementById('app-screen').classList.add('hidden');
+        document.getElementById('auth-screen').classList.remove('hidden');
+        showToast(t('accountDeleted'), "success");
+    }
+
+    function saveEngine(v) {
+        if (v === 'saleh-ultra' && ultraUsesLeft() <= 0) {
+            showToast(t('ultraLimit'), "error");
+            document.getElementById('engine-selector').value = engine;
+            return;
+        }
+        engine = v;
+        localStorage.setItem('saleh_engine', v);
+        document.getElementById('engine-selector').value = v;
+        renderModelMenu();
+    }
+
+    const MODEL_CARDS = [
+        ['Saleh AI', 'saleh-fast', 'Saleh AI Fast', 'Ən sürətli cavab', 'zap', 'text-amber-400'],
+        ['Saleh AI', 'saleh-think', 'Saleh AI Thinking', 'Düşünüb cavab verir', 'brain', 'text-sky-400'],
+        ['Saleh AI', 'saleh-pro', 'Saleh AI Pro', 'Kod, oyun və çətin suallar', 'gem', 'text-indigo-400'],
+        ['Saleh AI', 'saleh-ultra', 'Saleh AI Ultra Pro Max', 'Ən dərin düşünmə, yoxlayıb təkmilləşdirir', 'crown', 'text-fuchsia-400'],
+        ['Models', 'gemini-flash-lite', 'Gemini Flash Lite', 'Yüngül və sürətli', 'feather', 'text-emerald-400'],
+        ['Models', 'gemini-flash', 'Gemini Flash', 'Balanslı model', 'sparkles', 'text-emerald-400'],
+        ['Models', 'gemini-pro', 'Gemini Pro', 'Güclü model', 'star', 'text-emerald-400'],
+        ['Models', 'chatgpt-lite', 'ChatGPT Sadə', 'Sadə, qısa söhbət', 'message-circle', 'text-teal-400'],
+    ];
+    function renderModelMenu() {
+        const menu = document.getElementById('model-menu');
+        if (!menu) return;
+        const cur = MODEL_CARDS.find(m => m[1] === engine) || MODEL_CARDS[2];
+        document.getElementById('model-btn-label').textContent = cur[2];
+        let group = '';
+        menu.innerHTML = MODEL_CARDS.map(m => {
+            const head = m[0] !== group ? `<div class="text-[10px] uppercase tracking-wider text-slate-500 px-2 pt-2 pb-1">${(group = m[0])}</div>` : '';
+            const on = m[1] === engine;
+            return head + `<button onclick="pickModel('${m[1]}')" class="w-full flex items-center gap-3 text-left px-2.5 py-2 rounded-xl ${on ? 'bg-indigo-600/25 border border-indigo-500/50' : 'hover:bg-slate-800 border border-transparent'}">
+                <i data-lucide="${m[4]}" class="w-5 h-5 ${m[5]} shrink-0"></i>
+                <span class="min-w-0 flex-1"><span class="block text-sm text-slate-100">${m[2]}</span><span class="block text-[11px] text-slate-400">${m[3]}</span></span>
+                ${on ? '<i data-lucide="check" class="w-4 h-4 text-indigo-300"></i>' : ''}</button>`;
+        }).join('');
+        if (window.lucide) lucide.createIcons();
+    }
+    window.toggleModelMenu = function(e) { e.stopPropagation(); renderModelMenu(); document.getElementById('model-menu').classList.toggle('hidden'); };
+    window.pickModel = function(v) { document.getElementById('model-menu').classList.add('hidden'); saveEngine(v); };
+    document.addEventListener('click', (e) => { const m = document.getElementById('model-menu'); if (m && !m.contains(e.target)) m.classList.add('hidden'); });
+    setTimeout(renderModelMenu, 0);
+
+    /* Ultra Pro Max: 3 runs per day. The remaining count is never shown. */
+    function ultraDayKey() {
+        const d = new Date();
+        return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    }
+    function ultraUsesLeft() {
+        const raw = JSON.parse(localStorage.getItem('saleh_ultra_usage') || '{}');
+        return 3 - (raw[ultraDayKey()] || 0);
+    }
+    function consumeUltra() {
+        const raw = JSON.parse(localStorage.getItem('saleh_ultra_usage') || '{}');
+        raw[ultraDayKey()] = (raw[ultraDayKey()] || 0) + 1;
+        localStorage.setItem('saleh_ultra_usage', JSON.stringify(raw));
+    }
+
+    /* The engine actually sent to the backend for this request. */
+    function activeEngine() {
+        if (engine === 'saleh-ultra') {
+            if (ultraUsesLeft() <= 0) {
+                showToast(t('ultraLimit'), "error");
+                engine = 'saleh-pro';
+                localStorage.setItem('saleh_engine', engine);
+                document.getElementById('engine-selector').value = engine;
+                return engine;
+            }
+            consumeUltra();
+        }
+        return engine;
+    }
+
+    /* ================= CHATS ================= */
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (window.innerWidth >= 768) {
+            sidebar.classList.toggle('md:hidden');
+            sidebar.classList.toggle('md:flex');
+        } else {
+            sidebar.classList.toggle('-translate-x-full');
+        }
+    }
+
+    function createNewChat() {
+        const id = 'chat_' + Date.now();
+        chats[id] = { id, title: t('newChat'), messages: [] };
+        activeChatId = id;
+        saveChatsToStorage();
+        renderHistory();
+        loadChat(id);
+        if (window.innerWidth < 768 && !document.getElementById('sidebar').classList.contains('-translate-x-full')) toggleSidebar();
+    }
+
+    function loadChat(id) {
+        activeChatId = id;
+        const chat = chats[id];
+        const container = document.getElementById('chat-container');
+        container.innerHTML = '';
+        if (chat.messages.length === 0) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-slate-500 opacity-80" id="empty-chat-state">
+                    <i data-lucide="zap" class="w-16 h-16 mb-4 text-indigo-500 opacity-80"></i>
+                    <p class="text-xl font-bold text-slate-300">${t('emptyTitle')}</p>
+                    <p class="text-sm mt-2 max-w-md text-center">${t('emptySubtitle')}</p>
+                </div>`;
+            lucide.createIcons();
+        } else {
+            chat.messages.forEach((msg, idx) => appendMessageUI(msg.sender, msg.text, msg.time, msg.isAudio, msg.langCode, idx, msg));
+        }
+        document.querySelectorAll('#chat-history-list [data-id]').forEach(el => {
+            el.classList.remove('bg-indigo-600/30','border-indigo-500/50');
+            if (el.dataset.id === id) el.classList.add('bg-indigo-600/30','border-indigo-500/50');
+        });
+    }
+
+    function saveChatsToStorage() {
+        try { localStorage.setItem(`saleh_chats_${currentUser}`, JSON.stringify(chats)); } catch (e) { console.warn('storage full'); }
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('chat-history-list');
+        list.innerHTML = '';
+        Object.values(chats).reverse().forEach(chat => {
+            const row = document.createElement('div');
+            row.dataset.id = chat.id;
+            row.className = 'group w-full p-2.5 rounded-xl border border-transparent hover:bg-slate-700/50 text-sm text-slate-300 flex items-center gap-2 cursor-pointer';
+            row.innerHTML = `<i data-lucide="message-square" class="w-4 h-4 opacity-70 shrink-0"></i>
+                <span class="truncate flex-1">${escapeHtml(chat.title)}</span>
+                <button class="text-slate-500 hover:text-red-400 shrink-0" title="${t('deleteChat')}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`;
+            row.onclick = () => loadChat(chat.id);
+            row.querySelector('button').onclick = (e) => deleteChat(chat.id, e);
+            list.appendChild(row);
+        });
+        lucide.createIcons();
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function renderMarkdown(raw) {
+        let out = escapeHtml(raw);
+        out = out.replace(/```(\w+)?\n?([\s\S]*?)```/g, (m, lang, code) => `<pre class="code-block"><code>${code.replace(/\n$/,'')}</code></pre>`);
+        out = out.replace(/`([^`\n]+)`/g, '<code class="bg-slate-900/70 px-1.5 py-0.5 rounded text-indigo-300">$1</code>');
+        out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        out = out.replace(/\n/g, '<br>');
+        return out;
+    }
+
+    function appendMessageUI(sender, text, timeStr, hasAudio = false, langCode = "en-US", msgIndex = null, msgObj = null) {
+        const container = document.getElementById('chat-container');
+        const emptyState = document.getElementById('empty-chat-state');
+        if (emptyState) emptyState.remove();
+
+        const isAI = sender === 'AI';
+        const alignClass = isAI ? 'self-start' : 'self-end flex-row-reverse';
+        const bgClass = isAI ? 'bg-slate-800 border border-slate-700 text-slate-200' : 'bg-indigo-600 text-white';
+        let userInitial = "U";
+        if (currentUserData && currentUserData.prefName) userInitial = currentUserData.prefName.charAt(0).toUpperCase();
+
+        let extra = '';
+        if (isAI && msgIndex !== null) {
+            if (msgObj && msgObj.html) {
+                extra += `<button onclick="runInCanvas('${activeChatId}', ${msgIndex})" class="mt-3 mr-2 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/30 rounded-lg text-xs inline-flex items-center gap-1.5 text-emerald-300"><i data-lucide="play" class="w-3.5 h-3.5"></i> ${t('openInCanvas')}</button>`;
+            }
+            if (msgObj && msgObj.music) {
+                extra += `<button onclick="playMusicFromMsg('${activeChatId}', ${msgIndex})" class="mt-3 mr-2 px-3 py-1.5 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 rounded-lg text-xs inline-flex items-center gap-1.5 text-fuchsia-300"><i data-lucide="music" class="w-3.5 h-3.5"></i> ${t('playMusic')}</button>`;
+            }
+            if (msgObj && (msgObj.html || msgObj.music || msgObj.video)) {
+                extra += `<button onclick="publishItem('${activeChatId}', ${msgIndex})" class="mt-3 mr-2 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 rounded-lg text-xs inline-flex items-center gap-1.5 text-amber-300"><i data-lucide="share-2" class="w-3.5 h-3.5"></i> ${t('publish')}</button>`;
+            }
+            if (hasAudio) {
+                extra += `<button onclick="playStoredAudio('${activeChatId}', ${msgIndex})" class="mt-3 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30 rounded-lg text-xs inline-flex items-center gap-1.5 text-indigo-300"><i data-lucide="volume-2" class="w-3.5 h-3.5"></i> ${t('playAudio')}</button>`;
+            }
+        }
+
+        container.insertAdjacentHTML('beforeend', `
+            <div class="flex ${alignClass} gap-3 max-w-[85%] mt-4 animate-fade-in">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white flex-shrink-0 ${isAI ? 'bg-indigo-600 shadow-lg shadow-indigo-500/30 text-sm' : 'bg-slate-600 text-sm'}">${isAI ? 'AI' : userInitial}</div>
+                <div class="${bgClass} px-5 py-3.5 rounded-2xl text-[15px] leading-relaxed shadow-md break-words overflow-hidden">
+                    ${text}
+                    <div>${extra}</div>
+                    <span class="text-[10px] opacity-40 block mt-2 ${isAI ? 'text-left' : 'text-right'}">${timeStr}</span>
+                </div>
+            </div>`);
+        lucide.createIcons();
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 80);
+    }
+
+    /* ================= AI CORE ================= */
+    function buildSystemInstruction(opts) {
+        const locked = getSpeakLang();
+        const prefName = (currentUserData && currentUserData.prefName) || "User";
+        const personalityMode = (currentUserData && currentUserData.personality) || "concise";
+
+        let persona = "";
+        if (personalityMode === "concise") {
+            persona = "Be professional, direct and concise. No filler, no long intros.";
+        } else if (personalityMode === "friendly") {
+            persona = "Be warm and friendly, but brief. Max 3-4 sentences unless more is truly needed.";
+        } else {
+            persona = "Talk like a close, caring friend: warm, human, a little emotional, using natural everyday words and at most one emoji. " +
+                      "IMPORTANT: stay SHORT - same length as the friendly mode, maximum 3 short sentences. Never write long emotional essays or lectures.";
+        }
+
+        let rules = `You are Saleh AI, created, developed and trained by Saleh. ` +
+            `Never mention Google, Gemini, GPT, Claude, DeepSeek, OpenAI, model names, providers or APIs. ` +
+            `If asked what you run on, answer only: "I work on Saleh AI's own engine." ` +
+            `${persona} Address the user as "${prefName}". ` +
+            `Be truthful and accurate: never invent facts, and say plainly when you are unsure. ` +
+            `You remember the whole conversation above - always read the previous messages before answering, ` +
+            `and if the user refers to something said earlier, use it instead of asking again. ` +
+            `YOUR ABILITIES: you CAN generate and edit images, compose and play real music, generate real videos, ` +
+            `and build playable games and web apps in many programming languages, and the user can publish them ` +
+            `to the community and get a share link. You can build realistic 3D games (Three.js, physics, lighting) and real-time online multiplayer games (WebSocket/WebRTC/BroadcastChannel) and large multi-file projects. Never say you are unable to make music, video, images or games - ` +
+            `just do it or tell the user which tool button to pick. `;
+
+        if (locked === 'auto') {
+            rules += `CRITICAL LANGUAGE RULE: detect the language of the user's LATEST message and answer 100% in exactly ` +
+                `that same language and dialect. If they write in Azerbaijani, answer in Azerbaijani; if they switch ` +
+                `language mid-conversation, switch with them. Never answer in a different language, and never just name ` +
+                `the language - actually write in it. `;
+        } else {
+            const langName = LANG_NAMES[locked] || "English";
+            rules += `CRITICAL LANGUAGE RULE: answer 100% in ${langName}, no matter which language the user writes in. ` +
+                `Write every single word in ${langName}, including greetings and explanations. Never merely name the ` +
+                `language - actually write in it. `;
+        }
+
+        rules += `Never use LaTeX or dollar signs for math. Do not announce whether a message contains math. ` +
+            `Current date: ${new Date().toLocaleString('en-US')}.`;
+
+        if (opts && opts.mathAllowed) {
+            rules += " If the message is a pure math problem, give only the final exact answer unless steps are requested.";
+        }
+        if (opts && opts.extra) rules += " " + opts.extra;
+        return rules;
+    }
+
+    async function callModel(text, base64Image, history, extraInstruction, mathAllowed, retries = 2) {
+        const contents = [];
+        window.__lastAiError = null;
+        /* Keep memory but cap size so long chats never break the connection. */
+        const hist = [];
+        let budget = 20000;
+        for (const msg of (history || []).slice(-16).reverse()) {
+            let raw = msg.rawText !== undefined ? String(msg.rawText) : String(msg.text).replace(/<[^>]*>/g, ' ');
+            raw = raw.length > 6000 ? raw.slice(0, 3000) + '\n...\n' + raw.slice(-2500) : raw;
+            if (!raw.trim()) continue;
+            if (budget - raw.length < 0) break;
+            budget -= raw.length;
+            hist.unshift({ role: msg.sender === 'AI' ? 'model' : 'user', parts: [{ text: raw }] });
+        }
+        contents.push(...hist);
+
+        const parts = [{ text: text }];
+        if (base64Image) {
+            parts.push({ inlineData: { mimeType: base64Image.match(/data:(.*?);/)[1], data: base64Image.split(',')[1] } });
+        }
+        contents.push({ role: "user", parts });
+
+        const payload = {
+            contents,
+            systemInstruction: { parts: [{ text: buildSystemInstruction({ extra: extraInstruction, mathAllowed }) }] }
+        };
+
+        let lastError = null;
+        const modelId = activeEngine();
+        while (retries >= 0) {
+            try {
+                const res = await fetch(`/api/public/gemini?model=${encodeURIComponent(modelId)}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => null);
+                if (!res.ok || (data && data.message && !data.candidates)) { const err = new Error((data && (data.message || data.error)) || ('HTTP ' + res.status)); err.status = (data && data.status) || res.status; throw err; }
+                const p = data?.candidates?.[0]?.content?.parts;
+                if (p && p.length) {
+                    const txt = p.map(x => x.text || '').join('').trim();
+                    if (txt) return txt;
+                }
+                throw new Error("empty");
+            } catch (e) {
+                lastError = e;
+                window.__lastAiError = e && e.message;
+                const st = e && e.status;
+                const retryable = !st || st === 429 || st >= 500 || st === 200;
+                retries--;
+                if (retries < 0 || !retryable) { console.error(lastError); return null; }
+                await new Promise(r => setTimeout(r, 2000 * (3 - Math.max(retries, 0)) + Math.random() * 800));
+            }
+        }
+        return null;
+    }
+
+    async function generateOrEditImage(prompt, base64Image) {
+        const safePrompt = prompt + ". Follow the request precisely, high detail, accurate. Output only the image, no text.";
+        const parts = [{ text: safePrompt }];
+        if (base64Image) parts.push({ inlineData: { mimeType: base64Image.match(/data:(.*?);/)[1], data: base64Image.split(',')[1] } });
+        try {
+            const res = await fetch('/api/public/gemini?model=saleh-image', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ role: "user", parts }] })
+            });
+            const data = await res.json();
+            const img = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+            if (!img) return null;
+            return `<img src="data:${img.inlineData.mimeType};base64,${img.inlineData.data}" class="max-w-full h-auto rounded-xl mt-1 border border-slate-600 shadow-lg object-contain">`;
+        } catch (e) { console.error(e); return null; }
+    }
+
+    /* Omni video engine: create the job, poll it, then stream the mp4 back. */
+    async function generateVideo(prompt) {
+        try {
+            const res = await fetch('/api/public/video', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            const job = await res.json().catch(() => null);
+            if (!res.ok || !job || !job.id) {
+                if (job && job.message) showToast(job.message, "error");
+                return null;
+            }
+            for (let i = 0; i < 90; i++) {
+                await new Promise(r => setTimeout(r, 5000));
+                const st = await fetch('/api/public/video?id=' + encodeURIComponent(job.id));
+                const data = await st.json().catch(() => null);
+                if (!data) continue;
+                if (data.status === 'completed') return '/api/public/video-content?id=' + encodeURIComponent(job.id);
+                if (data.status === 'failed') {
+                    showToast((data.error && data.error.message) || 'Video generation failed', "error");
+                    return null;
+                }
+            }
+            return null;
+        } catch (e) { console.error(e); return null; }
+    }
+
+    function extractHtml(raw) {
+        const fence = raw.match(/```(?:html)?\s*([\s\S]*?)```/i);
+        const body = fence ? fence[1] : raw;
+        if (/<html|<canvas|<body|<div|<script/i.test(body)) return body.trim();
+        return null;
+    }
+
+    function extractJson(raw) {
+        const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        const body = fence ? fence[1] : raw;
+        const start = body.indexOf('{');
+        const end = body.lastIndexOf('}');
+        if (start === -1 || end === -1) return null;
+        try { return JSON.parse(body.slice(start, end + 1)); } catch (e) { return null; }
+    }
+
+    const IMAGE_NOUNS = /(şəkil|sekil|rəsm|resm|foto|təsvir|surət|image|picture|photo|drawing|рисун|картин|фото|resim|görsel|imagen|imagem|bild|绘|画|画像|이미지|صورة)/i;
+    const CREATE_VERBS = /(yarat|çək|cek|düzəlt|dəyiş|generate|draw|create|make|paint|edit|нарисуй|создай|сгенерируй|oluştur|çiz|crea|dibuja|gera|erstelle|zeichne|生成|作成|만들|أنشئ|ارسم)/i;
+
+    async function processAIResponse(userText, attachedImageData) {
+        const locked = getSpeakLang();
+        const speakLang = locked === 'auto' ? detectLang(userText) : locked;
+        const mode = activeMode;
+
+        /* --- IMAGE --- */
+        const wantsImage = mode === 'image' ||
+            (!mode && IMAGE_NOUNS.test(userText) && CREATE_VERBS.test(userText));
+        if (wantsImage) {
+            const html = await generateOrEditImage(userText, attachedImageData);
+            if (html) return { text: html, lang: speakLang };
+        }
+
+        /* --- MUSIC --- */
+        if (mode === 'music') {
+            const prevMsgs = (chats[activeChatId] && chats[activeChatId].messages.slice(0, -1)) || [];
+            let raw = null;
+            try {
+                raw = await callModel(userText, null, prevMsgs,
+                    'You are a world-class composer and arranger. Compose a rich, musically correct piece for the request. ' +
+                    'Reply with ONLY a JSON object of this exact shape: ' +
+                    '{"title":"...","tempo":100,"key":"A minor","lyrics":"...","melody":[{"n":"C5","d":0.5},{"n":"rest","d":0.25}],' +
+                    '"bass":[{"n":"A2","d":1}],"chords":[{"n":["A3","C4","E4"],"d":2}],"drums":[{"n":"kick","d":0.5},{"n":"hat","d":0.5}]}. ' +
+                    'The "lyrics" field holds real singable song lyrics in the language of the request: two short verses and a catchy chorus, ' +
+                    'each line on its own line. Rules: 60-110 melody notes forming a real song structure (intro, verse, a memorable chorus hook repeated ' +
+                    'at least twice, bridge, outro) with motif development, varied note lengths and a clear climax. ' +
+                    'The bass outlines the chord roots with movement. Use 12-40 diatonic chords with 3-4 notes each. Drums keep a ' +
+                    'steady groove using only "kick", "snare", "hat" or "rest". ' +
+                    'All four tracks must cover the same total length. Note names like C4, D#5, Bb3 or "rest". No prose, no code fences.',
+                    false, 1);
+            } catch (e) { console.error(e); }
+            let song = raw && extractJson(raw);
+            if (song && !Array.isArray(song.melody)) song.melody = song.notes || [];
+            if (!song || !Array.isArray(song.melody) || !song.melody.length) {
+                song = fallbackSong(userText);
+            }
+            const label = escapeHtml(song.title || userText.slice(0, 40));
+            const lyricsHtml = song.lyrics
+                ? `<div class="mt-2 text-sm text-slate-300 whitespace-pre-wrap border-l-2 border-fuchsia-500/50 pl-3">${escapeHtml(String(song.lyrics)).slice(0, 1500)}</div>`
+                : '';
+            return {
+                text: `<div class="flex items-center gap-2 text-fuchsia-300"><i data-lucide="music-4" class="w-4 h-4"></i><b>${label}</b></div>
+                       <div class="text-xs text-slate-400 mt-1">${song.melody.length} notes · ${song.tempo || 100} BPM${song.key ? ' · ' + escapeHtml(song.key) : ''}</div>${lyricsHtml}`,
+                lang: speakLang, music: song
+            };
+        }
+
+        /* --- VIDEO (real AI video, Omni engine) --- */
+        if (mode === 'video') {
+            const clip = await generateVideo(userText);
+            if (clip) {
+                return {
+                    text: `<div class="flex items-center gap-2 text-emerald-300"><i data-lucide="clapperboard" class="w-4 h-4"></i><b>${escapeHtml(userText.slice(0,60))}</b></div>
+                           <video src="${clip}" controls playsinline class="mt-2 w-full rounded-xl border border-slate-600"></video>`,
+                    lang: speakLang, video: clip
+                };
+            }
+            const raw = await callModel(userText, attachedImageData, [],
+                'You are an animation studio. Produce a single self-contained HTML document that plays an animated video scene ' +
+                'of the requested subject on a full-screen <canvas> using requestAnimationFrame. Rich motion, gradients, particles, ' +
+                'camera movement, looping. No external files or libraries. Reply with ONLY the HTML inside one ```html code fence.',
+                false, 1);
+            const html = raw && extractHtml(raw);
+            if (html) {
+                openCanvasWithHtml(html);
+                return {
+                    text: `<div class="flex items-center gap-2 text-emerald-300"><i data-lucide="clapperboard" class="w-4 h-4"></i><b>${escapeHtml(userText.slice(0,60))}</b></div>
+                           <div class="text-xs text-slate-400 mt-1">Animated scene is playing in Canvas.</div>`,
+                    lang: speakLang, html
+                };
+            }
+        }
+
+        /* --- CANVAS APP / GAME --- */
+        if (mode === 'canvas') {
+            const prevGame = ((chats[activeChatId] && chats[activeChatId].messages) || []).slice(0, -1).reverse().find(m => m.html);
+            const updatePrompt = prevGame
+                ? 'CURRENT GAME/APP CODE:\n```html\n' + prevGame.html + '\n```\n\nUSER REQUEST: ' + userText
+                : userText;
+            const raw = await callModel(updatePrompt, attachedImageData, [],
+                (prevGame ? 'This is an UPDATE to the existing game/app above. Do NOT rewrite it from scratch and do NOT remove ' +
+                 'any existing feature, level, graphic, control or logic. Keep the same design and code structure, and only add or ' +
+                 'change what the user asks for. If the request is clearly for a completely new, different game, then build a new one. ' +
+                 'Return the FULL updated HTML document. ' : '') +
+                'You are an elite creative coder. Build a single self-contained, fully playable/interactive HTML document ' +
+                '(inline CSS + JS, no external libraries) for the request. It must work immediately: keyboard, mouse and touch ' +
+                'controls, score, restart, polished visuals. Reply with ONLY the HTML inside one ```html code fence.',
+                false, 1);
+            const html = raw && extractHtml(raw);
+            if (html) {
+                openCanvasWithHtml(html);
+                return {
+                    text: `<div class="flex items-center gap-2 text-emerald-300"><i data-lucide="pen-tool" class="w-4 h-4"></i><b>${escapeHtml(userText.slice(0,60))}</b></div>
+                           <div class="text-xs text-slate-400 mt-1">Running live in Canvas.</div>`,
+                    lang: speakLang, html
+                };
+            }
+        }
+
+        /* --- CODE --- */
+        if (mode === 'code') {
+            const raw = await callModel(userText, attachedImageData, chats[activeChatId].messages.slice(0, -1),
+                'You are a senior polyglot software engineer. Give production-quality code in fenced code blocks with a short ' +
+                'explanation. You are fluent in and may write: HTML, CSS, JavaScript, TypeScript, React, Vue, Svelte, Node.js, ' +
+                'Python, Java, Kotlin, Swift, Objective-C, C, C++, C#, Go, Rust, PHP, Ruby, Dart/Flutter, Scala, Perl, Lua, R, ' +
+                'MATLAB, Julia, Haskell, Elixir, Erlang, Clojure, F#, Groovy, Assembly, Bash/Shell, PowerShell, SQL, PL/SQL, ' +
+                'GraphQL, Solidity, VHDL, Verilog, COBOL, Fortran, Pascal/Delphi, Visual Basic, Scratch-style pseudocode, ' +
+                'Arduino/C++, Unity C#, Unreal C++, Godot GDScript, Roblox Luau, LaTeX, YAML, JSON, Docker, Terraform. ' +
+                'Use exactly the language the user asks for; if none is named, pick the best fit and say why in one line. ' +
+                'If the answer is a runnable web app or game, provide one complete self-contained HTML document in an ```html fence.',
+                false, 2);
+            if (raw) {
+                const html = extractHtml(raw);
+                return { text: renderMarkdown(raw), lang: speakLang, html: html || null };
+            }
+        }
+
+        /* --- DEFAULT CHAT --- */
+        const hasMath = !attachedImageData && /[0-9].*[+\-*/=^%]|[+\-*/=^%].*[0-9]|integral|törəmə|derivative|equation|tənlik/i.test(userText);
+        const raw = await callModel(userText, attachedImageData, chats[activeChatId].messages.slice(0, -1), null, hasMath, 2);
+        if (!raw) return { text: escapeHtml(window.__lastAiError || "Connection problem. Please try again."), lang: speakLang };
+        const html = extractHtml(raw);
+        return { text: renderMarkdown(raw.replace(/\$/g, '')), lang: speakLang, html: html || null };
+    }
+
+    async function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text && !attachedImage) return;
+        input.value = ""; input.style.height = '44px';
+
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        let displayHtml = escapeHtml(text);
+        if (attachedImage) {
+            displayHtml += `${text ? '<br>' : ''}<img src="${attachedImage}" class="max-w-[200px] rounded-lg mt-2 border border-slate-600 shadow-md">`;
+        }
+
+        appendMessageUI('User', displayHtml, timeStr, false, "en-US", null);
+        chats[activeChatId].messages.push({ sender: 'User', text: displayHtml, time: timeStr, rawText: text, hasImage: !!attachedImage });
+        if (chats[activeChatId].messages.length === 1) {
+            chats[activeChatId].title = (text ? text.substring(0, 25) : "Image") + '...';
+            renderHistory();
+        }
+        saveChatsToStorage();
+
+        const imgToSend = attachedImage;
+        removeAttachedImage();
+
+        const container = document.getElementById('chat-container');
+        const loadingId = 'loading-' + Date.now();
+        container.insertAdjacentHTML('beforeend', `
+            <div id="${loadingId}" class="flex self-start gap-3 max-w-[85%] mt-4">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white bg-indigo-600 shadow-lg shadow-indigo-500/30 text-sm animate-pulse">AI</div>
+                <div class="bg-slate-800 border border-slate-700 text-slate-400 px-5 py-3.5 rounded-2xl text-[15px] shadow-md flex items-center gap-2">
+                    ${t('thinking')} <span class="flex gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style="animation-delay:.2s"></span><span class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style="animation-delay:.4s"></span></span>
+                </div>
+            </div>`);
+        container.scrollTop = container.scrollHeight;
+
+        let responseObj;
+        try {
+            responseObj = await processAIResponse(text || "Analyze this image in detail.", imgToSend);
+        } catch (e) {
+            console.error(e);
+            responseObj = null;
+        }
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
+        if (!responseObj) {
+            responseObj = { text: escapeHtml("Something went wrong. Please try again."), lang: "en-US" };
+        }
+
+        const aiMsg = { sender: 'AI', text: responseObj.text, time: timeStr, isAudio: true, langCode: responseObj.lang };
+        if (responseObj.html) aiMsg.html = responseObj.html;
+        if (responseObj.music) aiMsg.music = responseObj.music;
+        if (responseObj.video) aiMsg.video = responseObj.video;
+        const aiMsgIndex = chats[activeChatId].messages.length;
+        chats[activeChatId].messages.push(aiMsg);
+        appendMessageUI('AI', aiMsg.text, timeStr, true, aiMsg.langCode, aiMsgIndex, aiMsg);
+        saveChatsToStorage();
+    }
+
+    /* Local fallback composer so music never hangs when the model reply is unusable. */
+    function fallbackSong(prompt) {
+        const scales = {
+            minor: ["A3","B3","C4","D4","E4","F4","G4","A4","B4","C5","D5","E5"],
+            major: ["C4","D4","E4","F4","G4","A4","B4","C5","D5","E5","F5","G5"]
+        };
+        const minor = /(sad|kədər|hüzün|dark|üzgün|грусть|melanch)/i.test(prompt);
+        const scale = minor ? scales.minor : scales.major;
+        const chordsPool = minor
+            ? [["A3","C4","E4"],["F3","A3","C4"],["C4","E4","G4"],["G3","B3","D4"]]
+            : [["C4","E4","G4"],["A3","C4","E4"],["F3","A3","C4"],["G3","B3","D4"]];
+        const roots = minor ? ["A2","F2","C3","G2"] : ["C3","A2","F2","G2"];
+        const melody = [], bass = [], chords = [], drums = [];
+        const durs = [0.25, 0.5, 0.5, 0.75, 1];
+        for (let bar = 0; bar < 32; bar++) {
+            const ci = bar % 4;
+            chords.push({ n: chordsPool[ci], d: 2 });
+            bass.push({ n: roots[ci], d: 1 }, { n: roots[ci], d: 1 });
+            drums.push({ n: "kick", d: 0.5 }, { n: "hat", d: 0.5 }, { n: "snare", d: 0.5 }, { n: "hat", d: 0.5 });
+            let filled = 0;
+            while (filled < 2) {
+                const d = Math.min(durs[Math.floor(Math.random() * durs.length)], 2 - filled);
+                const note = scale[Math.floor(Math.random() * scale.length)];
+                melody.push({ n: Math.random() < 0.08 ? "rest" : note, d });
+                filled += d;
+            }
+        }
+        return {
+            title: String(prompt).slice(0, 40) || "Saleh AI song",
+            tempo: minor ? 88 : 112,
+            key: minor ? "A minor" : "C major",
+            melody, bass, chords, drums
+        };
+    }
+
+    /* ================= MUSIC PLAYER ================= */
+    const NOTE_MAP = { C:0, "C#":1, Db:1, D:2, "D#":3, Eb:3, E:4, F:5, "F#":6, Gb:6, G:7, "G#":8, Ab:8, A:9, "A#":10, Bb:10, B:11 };
+
+    function noteToFreq(name) {
+        const m = /^([A-G][#b]?)(-?\d)$/.exec(String(name).trim());
+        if (!m) return null;
+        const semi = NOTE_MAP[m[1]];
+        if (semi === undefined) return null;
+        const midi = (parseInt(m[2], 10) + 1) * 12 + semi;
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    let activeSources = [];
+    function stopSong() {
+        activeSources.forEach(s => { try { s.stop(); } catch (e) {} });
+        activeSources = [];
+    }
+
+    window.playMusicFromMsg = async function(chatId, idx) {
+        const song = chats[chatId] && chats[chatId].messages[idx] && chats[chatId].messages[idx].music;
+        if (!song) return;
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = audioCtx;
+            if (ctx.state === 'suspended') await ctx.resume();
+            stopSong();
+            playSong(ctx, song);
+            showToast(t('playMusic'), "success");
+        } catch (e) {
+            console.error(e);
+            showToast(t('connectionError'), "error");
+        }
+    };
+
+    /* Studio-style playback: melody + bass + chord pad + drums through a
+       shared reverb bus, so generated songs actually sound like music. */
+    function playSong(ctx, song) {
+        const beat = 60 / (song.tempo || 100);
+        const start = ctx.currentTime + 0.15;
+
+        const master = ctx.createGain();
+        master.gain.value = 0.9;
+        const comp = ctx.createDynamicsCompressor();
+        master.connect(comp).connect(ctx.destination);
+
+        const reverb = ctx.createConvolver();
+        const len = Math.floor(ctx.sampleRate * 1.6);
+        const imp = ctx.createBuffer(2, len, ctx.sampleRate);
+        for (let c = 0; c < 2; c++) {
+            const d = imp.getChannelData(c);
+            for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+        }
+        reverb.buffer = imp;
+        const wet = ctx.createGain(); wet.gain.value = 0.25;
+        reverb.connect(wet).connect(master);
+
+        const voice = (freq, at, dur, type, peak, detune) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(Math.min(9000, freq * 6 + 600), at);
+            osc.type = type;
+            osc.frequency.value = freq;
+            if (detune) osc.detune.value = detune;
+            const a = Math.min(0.04, dur * 0.2), r = Math.max(0.06, dur * 0.35);
+            gain.gain.setValueAtTime(0.0001, at);
+            gain.gain.exponentialRampToValueAtTime(peak, at + a);
+            gain.gain.exponentialRampToValueAtTime(peak * 0.6, at + dur * 0.6);
+            gain.gain.exponentialRampToValueAtTime(0.0001, at + dur + r);
+            osc.connect(filter).connect(gain);
+            gain.connect(master); gain.connect(reverb);
+            activeSources.push(osc);
+            osc.start(at); osc.stop(at + dur + r + 0.02);
+        };
+
+        const drum = (kind, at) => {
+            if (kind === 'kick') {
+                const osc = ctx.createOscillator(), g = ctx.createGain();
+                osc.frequency.setValueAtTime(140, at);
+                osc.frequency.exponentialRampToValueAtTime(45, at + 0.14);
+                g.gain.setValueAtTime(0.6, at);
+                g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+                osc.connect(g).connect(master);
+                activeSources.push(osc);
+                osc.start(at); osc.stop(at + 0.24);
+                return;
+            }
+            const noiseLen = kind === 'snare' ? 0.18 : 0.05;
+            const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * noiseLen), ctx.sampleRate);
+            const d = buf.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+            const src = ctx.createBufferSource(); src.buffer = buf;
+            const hp = ctx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = kind === 'snare' ? 1400 : 7000;
+            const g = ctx.createGain(); g.gain.value = kind === 'snare' ? 0.3 : 0.14;
+            src.connect(hp).connect(g); g.connect(master); g.connect(reverb);
+            activeSources.push(src);
+            src.start(at);
+        };
+
+        const runTrack = (track, cb) => {
+            let time = start;
+            (track || []).slice(0, 400).forEach(step => {
+                const dur = Math.max(0.08, (Number(step.d) || 0.5) * beat);
+                cb(step, time, dur);
+                time += dur;
+            });
+        };
+
+        runTrack(song.melody, (s, at, dur) => {
+            const f = noteToFreq(s.n);
+            if (!f) return;
+            voice(f, at, dur, 'triangle', 0.22, 0);
+            voice(f, at, dur, 'sine', 0.09, 7);
+        });
+        runTrack(song.bass, (s, at, dur) => {
+            const f = noteToFreq(s.n);
+            if (f) voice(f, at, dur, 'sawtooth', 0.16, 0);
+        });
+        runTrack(song.chords, (s, at, dur) => {
+            const notes = Array.isArray(s.n) ? s.n : [s.n];
+            notes.forEach(n => { const f = noteToFreq(n); if (f) voice(f, at, dur, 'sine', 0.07, 0); });
+        });
+        runTrack(song.drums, (s, at) => {
+            const kind = String(s.n || '').toLowerCase();
+            if (kind === 'kick' || kind === 'snare' || kind === 'hat') drum(kind, at);
+        });
+    }
+
+    /* ================= CANVAS ================= */
+    let drawing = false, drawCtx = null;
+
+    function openCanvas() { document.getElementById('canvas-modal').classList.remove('hidden'); resizeDrawCanvas(); lucide.createIcons(); }
+    function closeCanvas() { document.getElementById('canvas-modal').classList.add('hidden'); }
+
+    function switchCanvasTab(tab) {
+        document.getElementById('canvas-draw-pane').classList.toggle('hidden', tab !== 'draw');
+        document.getElementById('canvas-live-pane').classList.toggle('hidden', tab !== 'live');
+        document.getElementById('canvas-code-pane').classList.toggle('hidden', tab !== 'code');
+        if (tab === 'draw') resizeDrawCanvas();
+    }
+
+    function openCanvasWithHtml(html) {
+        openCanvas();
+        switchCanvasTab('live');
+        document.getElementById('canvas-frame').srcdoc = html;
+        document.getElementById('canvas-code').value = html;
+    }
+    window.copyCanvasCode = function() { navigator.clipboard.writeText(document.getElementById('canvas-code').value).then(() => showToast(t('saved'), "success")); };
+    window.runCanvasCode = function() { const h = document.getElementById('canvas-code').value; document.getElementById('canvas-frame').srcdoc = h; switchCanvasTab('live'); };
+
+    window.runInCanvas = function(chatId, idx) {
+        const msg = chats[chatId] && chats[chatId].messages[idx];
+        if (msg && msg.html) openCanvasWithHtml(msg.html);
+    };
+
+    function initDrawing() {
+        const canvas = document.getElementById('draw-canvas');
+        drawCtx = canvas.getContext('2d');
+        const pos = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const p = e.touches ? e.touches[0] : e;
+            return { x: p.clientX - r.left, y: p.clientY - r.top };
+        };
+        const start = (e) => { drawing = true; const { x, y } = pos(e); drawCtx.beginPath(); drawCtx.moveTo(x, y); e.preventDefault(); };
+        const move = (e) => {
+            if (!drawing) return;
+            const { x, y } = pos(e);
+            drawCtx.lineCap = 'round'; drawCtx.lineJoin = 'round';
+            drawCtx.strokeStyle = document.getElementById('brush-color').value;
+            drawCtx.lineWidth = Number(document.getElementById('brush-size').value);
+            drawCtx.lineTo(x, y); drawCtx.stroke();
+            e.preventDefault();
+        };
+        const end = () => { drawing = false; };
+        canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', start, { passive: false });
+        canvas.addEventListener('touchmove', move, { passive: false });
+        canvas.addEventListener('touchend', end);
+        window.addEventListener('resize', resizeDrawCanvas);
+    }
+
+    function resizeDrawCanvas() {
+        const canvas = document.getElementById('draw-canvas');
+        if (!canvas || !canvas.parentElement) return;
+        const data = canvas.width ? canvas.toDataURL() : null;
+        canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+        if (data) { const img = new Image(); img.onload = () => drawCtx.drawImage(img, 0, 0); img.src = data; }
+    }
+
+    function clearDrawing() {
+        const canvas = document.getElementById('draw-canvas');
+        drawCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function sendDrawingToAI() {
+        const canvas = document.getElementById('draw-canvas');
+        attachedImage = canvas.toDataURL('image/png');
+        document.getElementById('attached-img-tag').src = attachedImage;
+        document.getElementById('image-attachment-preview').classList.remove('hidden');
+        clearMode();
+        closeCanvas();
+        document.getElementById('chat-input').focus();
+    }
+
+    /* ================= SPEECH ================= */
+    window.playStoredAudio = function(chatId, msgIndex) {
+        const msg = chats[chatId] && chats[chatId].messages[msgIndex];
+        if (msg) {
+            const locked = getSpeakLang();
+            const lang = locked !== 'auto' ? locked
+                : (msg.langCode && msg.langCode !== 'auto' ? msg.langCode : detectLang(String(msg.text).replace(/<[^>]*>/g, ' ')));
+            speakText(msg.text, lang);
+        }
+    };
+
+    function speakText(text, langCode = "en-US") {
+        if (!('speechSynthesis' in window)) return showToast("Voice not supported", "error");
+        window.speechSynthesis.cancel();
+        const plain = String(text).replace(/<[^>]*>?/gm, ' ').replace(/[*#`_$]/g, '').replace(/&nbsp;/g, ' ').trim();
+        if (!plain) return;
+        availableVoices = window.speechSynthesis.getVoices();
+        if (!availableVoices.length) {
+            // Voices load asynchronously on first use - wait once, then speak.
+            window.speechSynthesis.addEventListener('voiceschanged', function once() {
+                window.speechSynthesis.removeEventListener('voiceschanged', once);
+                speakText(text, langCode);
+            });
+            return;
+        }
+        const target = langCode === 'auto' ? detectLang(plain) : langCode;
+        const voice = pickVoice(target);
+        // Exact-language device voice missing (e.g. Azerbaijani, Tunisian Arabic)
+        // -> use the server voice so every language really speaks.
+        if (!voice || !sameLanguage(voice.lang, target)) { serverSpeak(plain, target); return; }
+        const utter = new SpeechSynthesisUtterance(plain);
+        utter.voice = voice; utter.lang = voice.lang.replace('_', '-');
+        utter.rate = 1; utter.pitch = 1;
+        window.speechSynthesis.speak(utter);
+    }
+
+    function sameLanguage(voiceLang, target) {
+        return String(voiceLang).replace('_', '-').slice(0, 2).toLowerCase() === String(target).slice(0, 2).toLowerCase();
+    }
+
+    let serverAudio = null;
+    async function serverSpeak(plain, target) {
+        try {
+            if (serverAudio) { serverAudio.pause(); serverAudio = null; }
+            const res = await fetch('/api/public/tts', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: plain.slice(0, 3500), lang: LANG_NAMES[target] || target })
+            });
+            if (!res.ok) throw new Error('tts ' + res.status);
+            const blob = await res.blob();
+            serverAudio = new Audio(URL.createObjectURL(blob));
+            await serverAudio.play();
+        } catch (e) {
+            console.error(e);
+            showToast(t('noVoice'), "error");
+        }
+    }
+
+    /* Language codes without their own TTS voice fall back to the closest
+       phonetically compatible voice so every language still speaks. */
+    const VOICE_FALLBACK = { az:['tr'], tn:['ar'], sv:['nb','da','en'] };
+
+    function pickVoice(target) {
+        const list = availableVoices;
+        const norm = (v) => v.lang.replace('_', '-');
+        const base = target.substring(0, 2);
+        let voice = list.find(v => norm(v) === target && v.localService) || list.find(v => norm(v) === target);
+        if (!voice) voice = list.find(v => norm(v).toLowerCase() === target.toLowerCase());
+        if (!voice) voice = list.find(v => norm(v).startsWith(base + '-') || norm(v) === base);
+        if (!voice) (VOICE_FALLBACK[base] || []).some(fb => (voice = list.find(v => norm(v).startsWith(fb))));
+        return voice || null;
+    }
+
+    function initSpeechRecognition() {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) return;
+        recognition = new SpeechRec();
+        recognition.onstart = () => { isRecording = true; document.getElementById('mic-icon').classList.add('text-red-500','animate-pulse'); };
+        recognition.onend = () => { isRecording = false; document.getElementById('mic-icon').classList.remove('text-red-500','animate-pulse'); };
+        recognition.onresult = (e) => { document.getElementById('chat-input').value = e.results[0][0].transcript; sendChatMessage(); };
+    }
+
+    function toggleVoiceInput() {
+        if (!recognition) return showToast("Microphone not supported", "error");
+        const locked = getSpeakLang();
+        recognition.lang = locked !== 'auto' ? locked : (UI_TO_BCP[uiLang] || 'en-US');
+        isRecording ? recognition.stop() : recognition.start();
+    }
+
+    /* ================= CAMERA / GALLERY ================= */
+    function toggleCameraPanel(forceOpen = null) {
+        const sidebar = document.getElementById('media-preview-sidebar');
+        if (forceOpen === false) { sidebar.classList.add('hidden'); closeCamera(); return; }
+        sidebar.classList.toggle('hidden', forceOpen === true ? false : undefined);
+        if (!sidebar.classList.contains('hidden')) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(stream => {
+                const v = document.getElementById('webcam');
+                v.srcObject = stream; v.setAttribute('playsinline',''); v.play();
+            }).catch(() => showToast("Camera access denied", "error"));
+        } else closeCamera();
+        lucide.createIcons();
+    }
+
+    function closeCamera() {
+        const v = document.getElementById('webcam');
+        if (v && v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
+    }
+
+    function triggerGallery() { document.getElementById('gallery-input').click(); }
+
+    function handleGalleryUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            attachedImage = evt.target.result;
+            document.getElementById('attached-img-tag').src = attachedImage;
+            document.getElementById('image-attachment-preview').classList.remove('hidden');
+            document.getElementById('chat-input').focus();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function removeAttachedImage() {
+        attachedImage = null;
+        document.getElementById('image-attachment-preview').classList.add('hidden');
+        document.getElementById('gallery-input').value = '';
+    }
+
+    async function captureAndSolve() {
+        const video = document.getElementById('webcam');
+        if (!video.srcObject) return showToast("Camera is not active", "error");
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        attachedImage = canvas.toDataURL('image/jpeg');
+        document.getElementById('attached-img-tag').src = attachedImage;
+        document.getElementById('image-attachment-preview').classList.remove('hidden');
+        toggleCameraPanel(false);
+        document.getElementById('chat-input').focus();
+    }
+    </script>
+</body>
+</html>
